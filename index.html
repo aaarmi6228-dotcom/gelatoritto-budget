@@ -721,7 +721,7 @@
     const grid = document.getElementById('ledgerGrid');
     if (dbState !== 'ready') { renderLedgerUnavailable(); return; }
     const token = ++ledgerToken;
-    grid.innerHTML = '<div class="empty-hint">불러오는 중…</div>';
+    if (!ledgerData) grid.innerHTML = '<div class="empty-hint">불러오는 중…</div>'; // 첫 로딩 때만 표시 — 새로고침마다 화면을 비우면 스크롤 위치가 맨 위로 튐
     try {
       const { data: rows, error } = await supabaseClient.from('transactions')
         .select('id, domain, type, is_fixed, category, amount, memo')
