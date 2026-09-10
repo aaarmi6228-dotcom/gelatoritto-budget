@@ -528,6 +528,11 @@
     font-size:1em; line-height:1; padding:0; flex:none; font-family:var(--font-body);
   }
   .subitem-row .chip-del:hover{ color:var(--exp-fixed); }
+  .subitem-edit{
+    border:none; background:none; color:var(--ink-faint); cursor:pointer;
+    font-size:.82em; line-height:1; padding:0; flex:none; font-family:var(--font-body);
+  }
+  .subitem-edit:hover{ color:var(--accent); }
   .drag-handle.sm{ font-size:.85rem; padding:0; }
   .cat-add-btn{ margin-top:12px; }
 
@@ -1194,6 +1199,7 @@
                         <div class="subitem-row" data-item-id="${it.id}">
                           <span class="drag-handle sm" draggable="true" aria-hidden="true" title="드래그해서 순서 변경">⠿</span>
                           <span class="subitem-name">${escapeHtml(it.name)}</span>
+                          <button class="subitem-edit" type="button" data-item-id="${it.id}" aria-label="이름 수정">✎</button>
                           <button class="chip-del" type="button" data-item-id="${it.id}" aria-label="삭제">×</button>
                         </div>
                       `).join('')}
@@ -1211,6 +1217,9 @@
         });
         block.querySelectorAll('.cat-item-sub .chip-del').forEach(btn => {
           btn.addEventListener('click', () => deleteCategoryItem(btn.dataset.itemId));
+        });
+        block.querySelectorAll('.subitem-edit').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); openSubItemRenameForm(e.currentTarget); });
         });
         block.querySelectorAll('.cat-item-row').forEach(rowEl => {
           const toggle = rowEl.querySelector('.cat-item-toggle');
@@ -1444,6 +1453,63 @@
     } catch (err) {
       const info = dbError(err); showBanner(info.code, info.detail);
     }
+  }
+
+  function openSubItemRenameForm(btn) {
+    const id = btn.dataset.itemId;
+    const item = categoryItems.find(ci => ci.id === id);
+    if (!item) return;
+    const row = btn.closest('.subitem-row');
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('entry-form')) { row.nextElementSibling.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-cat" type="text" maxlength="40" value="${escapeHtml(item.name)}">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">저장</button>
+      </div>
+    `;
+    row.after(form);
+    const input = form.querySelector('.f-cat');
+    input.focus();
+    input.select();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const name = input.value.trim();
+      const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
+      if (!name) {
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = '이름을 입력해주세요.'; form.appendChild(e); return;
+      }
+      if (name === item.name) { form.remove(); return; }
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        await renameCategoryItem(item, name);
+        form.remove();
+        await loadCategoryItems();
+        await loadLedger(); // 과거 거래 메모도 함께 바뀌므로 소득/지출도 새로고침
+      } catch (err) {
+        saveBtn.disabled = false;
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  async function renameCategoryItem(item, newName) {
+    const { error } = await supabaseClient.from('category_items')
+      .update({ name: newName }).eq('id', item.id);
+    if (error) throw error;
+    // 지난달들의 거래 메모도 새 이름으로 맞춰줘야 이전 데이터가 새 이름 아래로 계속 이어져 보임
+    const { error: txnError } = await supabaseClient.from('transactions')
+      .update({ memo: newName })
+      .eq('domain', item.domain).eq('type', item.type).eq('is_fixed', item.is_fixed)
+      .eq('category', item.category).eq('memo', item.name);
+    if (txnError) throw txnError;
   }
 
   /* ---------- 자산현황 ---------- */
