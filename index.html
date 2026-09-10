@@ -475,6 +475,34 @@
   .chip.add:hover{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
   .chips .entry-form{ flex-basis:100%; border-top:none; padding:8px 0 0; background:none; }
 
+  .cat-item-list{ display:flex; flex-direction:column; gap:6px; }
+  .cat-item-row{
+    border:1px solid var(--line); border-radius:10px; background:var(--paper-sunken);
+    overflow:hidden;
+  }
+  .cat-item-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 12px;
+  }
+  .cat-item-toggle{
+    flex:1; display:flex; align-items:center; gap:8px; min-width:0;
+    background:none; border:none; padding:0; cursor:pointer; text-align:left;
+    font-family:inherit; color:inherit;
+  }
+  .cat-item-toggle .chevron-sm{ width:14px; height:14px; color:var(--ink-faint); flex:none; transition:transform .2s ease; }
+  .cat-item-toggle[aria-expanded="true"] .chevron-sm{ transform:rotate(180deg); }
+  .cat-item-toggle .cname{ font-size:.85rem; font-weight:600; color:var(--ink); }
+  .cat-item-toggle .isub-count{ font-size:.75rem; color:var(--ink-faint); }
+  .cat-item-head > .chip-del{
+    border:none; background:none; color:var(--ink-faint); cursor:pointer;
+    font-size:1.1em; line-height:1; padding:2px 4px; flex:none; font-family:var(--font-body);
+  }
+  .cat-item-head > .chip-del:hover{ color:var(--exp-fixed); }
+  .cat-item-sub{ padding:0 12px 10px 30px; }
+  .cat-item-sub .chips{ gap:6px; }
+  .cat-item-sub .chip{ font-size:.78rem; padding:4px 10px; background:var(--paper-raised); }
+  .cat-add-btn{ margin-top:12px; }
+
   h3.section-note{
     font-size:.78rem;
     color:var(--ink-faint);
@@ -755,7 +783,25 @@
       if (!byName.has(it.name)) byName.set(it.name, []); // 카테고리 관리에서 삭제/변경된 이름도 데이터가 사라지지 않도록 표시
       byName.get(it.name).push(it);
     });
-    return Array.from(byName.entries()).map(([name, list]) => ({ name, items: list, total: sum(list) }));
+    return Array.from(byName.entries()).map(([name, list]) => {
+      // 카테고리 관리에서 등록해둔 "하위 항목"이 있으면, 매달 0원 기본값으로 항상 표시되는 고정 항목으로 분리
+      const templateNames = categoryItems
+        .filter(ci => ci.domain === domain && ci.type === group.txnType && boolVal(ci.is_fixed) === group.isFixed && ci.category === name)
+        .map(ci => ci.name)
+        .sort((a, b) => a.localeCompare(b, 'ko'));
+      let templateRows = [];
+      let extraItems = list;
+      if (templateNames.length) {
+        const used = new Set();
+        templateRows = templateNames.map(tName => {
+          const matches = list.filter(it => (it.memo || '') === tName);
+          matches.forEach(m => used.add(m.id));
+          return { name: tName, items: matches, total: sum(matches) };
+        });
+        extraItems = list.filter(it => !used.has(it.id));
+      }
+      return { name, items: list, total: sum(list), templateRows, extraItems };
+    });
   }
 
   function renderLedger() {
@@ -815,8 +861,20 @@
                         </button>
                       </span>
                     </div>
-                    ${cg.items.length ? `<div class="cat-txns">
-                      ${cg.items.map(it => `
+                    ${(cg.templateRows.length || cg.extraItems.length) ? `<div class="cat-txns">
+                      ${cg.templateRows.map(tr => `
+                        <div class="row tmpl-row">
+                          <span class="rname">${escapeHtml(tr.name)}</span>
+                          <span class="rright">
+                            <span class="ramt">${signed(tr.total, group.type)}</span>
+                            <button class="edit-bal" type="button">수정</button>
+                            ${tr.items[0] ? `<button class="rdel" type="button" aria-label="삭제" data-id="${tr.items[0].id}">
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                            </button>` : ''}
+                          </span>
+                        </div>
+                      `).join('')}
+                      ${cg.extraItems.map(it => `
                         <div class="row" data-id="${it.id}">
                           <span class="rname">${it.memo ? escapeHtml(it.memo) : '메모 없음'}</span>
                           <span class="rright">
@@ -845,6 +903,15 @@
         });
         card.querySelectorAll('.cadd').forEach(btn => {
           btn.addEventListener('click', (e) => { e.stopPropagation(); openCategoryEntryForm(btn, colKey, group, btn.dataset.category); });
+        });
+        // .tmpl-row는 catGroups 순서대로 렌더링되므로, 같은 순서로 만든 목록과 그대로 짝지어 이벤트를 건다
+        const flatTemplateRows = catGroups.flatMap(cg => cg.templateRows.map(tr => ({ categoryName: cg.name, tr })));
+        card.querySelectorAll('.tmpl-row .edit-bal').forEach((btn, i) => {
+          const { categoryName, tr } = flatTemplateRows[i];
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openTemplateItemEditor(btn, colKey, group, categoryName, tr.name, tr.items[0]);
+          });
         });
         cardsRoot.appendChild(card);
       });
@@ -891,6 +958,47 @@
     });
   }
 
+  function openTemplateItemEditor(btn, colKey, group, categoryName, itemName, existingTxn) {
+    const row = btn.closest('.row');
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('entry-form')) { row.nextElementSibling.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-amt" type="number" placeholder="금액" min="0" step="1" value="${existingTxn ? existingTxn.amount : ''}">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">저장</button>
+      </div>
+    `;
+    row.after(form);
+    const input = form.querySelector('.f-amt');
+    input.focus();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    form.querySelector('.save').addEventListener('click', async () => {
+      const amt = Number(input.value);
+      if (!(amt >= 0)) return;
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        if (existingTxn) {
+          await updateTransactionAmount(existingTxn.id, amt);
+        } else {
+          await addTransaction(colKey, group, categoryName, amt, itemName);
+        }
+        form.remove();
+        await loadLedger();
+      } catch (err) {
+        saveBtn.disabled = false;
+        showBanner((err && err.code) || 'upstream_error', err && (err.message || err.server));
+      }
+    });
+  }
+
+  async function updateTransactionAmount(id, amount) {
+    const { error } = await supabaseClient.from('transactions').update({ amount }).eq('id', id);
+    if (error) throw error;
+  }
+
   async function addTransaction(colKey, group, name, amount, memo) {
     const domain = COLUMNS[colKey].domain;
     const { error } = await supabaseClient.from('transactions').insert({
@@ -912,6 +1020,9 @@
 
   /* ---------- 카테고리 관리 ---------- */
   let allCategories = [];
+  let categoryItems = [];
+  const openCategoryItemPanels = new Set(); // 하위 항목 펼침 상태 유지용
+  const itemPanelKey = (domain, group, category) => `${domain}|${group.txnType}|${group.isFixed}|${category}`;
 
   async function loadCategories() {
     const root = document.getElementById('categoriesRoot');
@@ -926,6 +1037,21 @@
       if (ledgerData) renderLedger(); // 소득/지출 목록도 최신 카테고리 기준으로 다시 그림
     } catch (err) {
       root.innerHTML = '';
+      const info = dbError(err); showBanner(info.code, info.detail);
+    }
+  }
+
+  async function loadCategoryItems() {
+    if (dbState !== 'ready') return;
+    try {
+      const { data, error } = await supabaseClient.from('category_items')
+        .select('id, domain, type, is_fixed, category, name')
+        .order('domain').order('type').order('is_fixed').order('category').order('name');
+      if (error) throw error;
+      categoryItems = data || [];
+      renderCategories();
+      if (ledgerData) renderLedger(); // 소득/지출의 고정 하위 항목도 최신 목록으로 다시 그림
+    } catch (err) {
       const info = dbError(err); showBanner(info.code, info.detail);
     }
   }
@@ -946,25 +1072,65 @@
             <span class="name"><span class="dot" style="background:var(--${group.type === 'income' ? 'income' : group.type === 'fixed' ? 'exp-fixed' : 'exp-var'})"></span>${group.name}</span>
             <span class="count">${rows.length}개 카테고리</span>
           </div>
-          <div class="chips">
-            ${rows.map(r => `<span class="chip">${escapeHtml(r.name)}<button class="chip-del" type="button" data-id="${r.id}" aria-label="삭제">×</button></span>`).join('')}
-            <button class="chip add" type="button">+ 카테고리 추가</button>
+          <div class="cat-item-list">
+            ${rows.map(r => {
+              const subItems = categoryItems
+                .filter(ci => ci.domain === col.domain && ci.type === group.txnType && boolVal(ci.is_fixed) === group.isFixed && ci.category === r.name)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+              const isOpen = openCategoryItemPanels.has(itemPanelKey(col.domain, group, r.name));
+              return `
+                <div class="cat-item-row">
+                  <div class="cat-item-head">
+                    <button class="cat-item-toggle" type="button" aria-expanded="${isOpen}">
+                      <svg class="chevron-sm" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
+                      <span class="cname">${escapeHtml(r.name)}</span>
+                      <span class="isub-count">${subItems.length ? subItems.length + '개 하위 항목' : '하위 항목 없음'}</span>
+                    </button>
+                    <button class="chip-del" type="button" data-id="${r.id}" aria-label="카테고리 삭제">×</button>
+                  </div>
+                  <div class="cat-item-sub" ${isOpen ? '' : 'hidden'}>
+                    <div class="chips">
+                      ${subItems.map(it => `<span class="chip">${escapeHtml(it.name)}<button class="chip-del" type="button" data-item-id="${it.id}" aria-label="삭제">×</button></span>`).join('')}
+                      <button class="chip add" type="button" data-add-item="${escapeHtml(r.name)}">+ 하위 항목 추가</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
+          <button class="chip add cat-add-btn" type="button">+ 카테고리 추가</button>
         `;
-        block.querySelectorAll('.chip-del').forEach(btn => {
+        block.querySelectorAll('.cat-item-head > .chip-del').forEach(btn => {
           btn.addEventListener('click', () => deleteCategory(btn.dataset.id));
         });
-        block.querySelector('.chip.add').addEventListener('click', (e) => openCategoryForm(e.currentTarget, col.domain, group));
+        block.querySelectorAll('.cat-item-sub .chip-del').forEach(btn => {
+          btn.addEventListener('click', () => deleteCategoryItem(btn.dataset.itemId));
+        });
+        block.querySelectorAll('.cat-item-row').forEach(rowEl => {
+          const toggle = rowEl.querySelector('.cat-item-toggle');
+          const sub = rowEl.querySelector('.cat-item-sub');
+          const categoryName = toggle.querySelector('.cname').textContent;
+          toggle.addEventListener('click', () => {
+            const willOpen = sub.hidden;
+            sub.hidden = !willOpen;
+            toggle.setAttribute('aria-expanded', String(willOpen));
+            const key = itemPanelKey(col.domain, group, categoryName);
+            if (willOpen) openCategoryItemPanels.add(key); else openCategoryItemPanels.delete(key);
+          });
+        });
+        block.querySelectorAll('[data-add-item]').forEach(btn => {
+          btn.addEventListener('click', (e) => openCategoryItemForm(e.currentTarget, col.domain, group, btn.dataset.addItem));
+        });
+        block.querySelector('.cat-add-btn').addEventListener('click', (e) => openCategoryForm(e.currentTarget, col.domain, group));
         wrap.appendChild(block);
       });
       root.appendChild(wrap);
     });
   }
 
-  function openCategoryForm(addChip, domain, group) {
-    const chips = addChip.closest('.chips');
-    const existing = chips.querySelector('.entry-form');
-    if (existing) { existing.remove(); return; }
+  function openCategoryForm(addBtn, domain, group) {
+    const existing = addBtn.nextElementSibling;
+    if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
@@ -974,7 +1140,7 @@
         <button class="save" type="button">추가</button>
       </div>
     `;
-    chips.appendChild(form);
+    addBtn.after(form);
     const input = form.querySelector('.f-cat');
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
@@ -1013,6 +1179,63 @@
       const { error } = await supabaseClient.from('categories').delete().eq('id', id);
       if (error) throw error;
       await loadCategories();
+    } catch (err) {
+      const info = dbError(err); showBanner(info.code, info.detail);
+    }
+  }
+
+  function openCategoryItemForm(addBtn, domain, group, categoryName) {
+    const existing = addBtn.nextElementSibling;
+    if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-cat" type="text" placeholder="하위 항목명 (예: 주담대1)" maxlength="40">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">추가</button>
+      </div>
+    `;
+    addBtn.after(form);
+    const input = form.querySelector('.f-cat');
+    input.focus();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const name = input.value.trim();
+      const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
+      if (!name) {
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = '항목명을 입력해주세요.'; form.appendChild(e); return;
+      }
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        await addCategoryItem(domain, group, categoryName, name);
+        form.remove();
+        openCategoryItemPanels.add(itemPanelKey(domain, group, categoryName)); // 추가 직후 펼친 상태 유지
+        await loadCategoryItems();
+      } catch (err) {
+        saveBtn.disabled = false;
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  async function addCategoryItem(domain, group, category, name) {
+    const { error } = await supabaseClient.from('category_items').upsert({
+      domain, type: group.txnType, is_fixed: group.isFixed, category, name
+    }, { onConflict: 'domain,type,is_fixed,category,name', ignoreDuplicates: true });
+    if (error) throw error;
+  }
+
+  async function deleteCategoryItem(id) {
+    try {
+      const { error } = await supabaseClient.from('category_items').delete().eq('id', id);
+      if (error) throw error;
+      await loadCategoryItems();
     } catch (err) {
       const info = dbError(err); showBanner(info.code, info.detail);
     }
@@ -1256,7 +1479,7 @@
     renderMonthSwitch();
     const ok = await connectDb();
     if (ok) {
-      await Promise.all([loadLedger(), loadAssets(), loadCategories()]);
+      await Promise.all([loadLedger(), loadAssets(), loadCategories(), loadCategoryItems()]);
     } else {
       renderLedgerUnavailable();
       document.getElementById('assetStats').innerHTML = '';
