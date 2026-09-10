@@ -586,6 +586,11 @@
   .entry-form button.save:disabled{ opacity:.5; cursor:not-allowed; }
   .entry-form button.cancel{ background:none; color:var(--ink-faint); border-color:var(--line-strong); }
   .entry-form .f-error{ flex-basis:100%; font-size:.78rem; color:var(--exp-fixed); }
+  .f-amt-preview{
+    flex-basis:100%; font-size:.78rem; color:var(--accent); font-family:var(--font-mono);
+    font-weight:600; display:none;
+  }
+  .f-amt-preview.show{ display:block; }
 
   .empty-hint{ padding:18px; text-align:center; color:var(--ink-faint); font-size:.85rem; }
 
@@ -660,6 +665,41 @@
   const won = n => n.toLocaleString('ko-KR') + '원';
   const signed = (n, type) => (type === 'income' ? '+' : '−') + won(Math.abs(n));
   const sum = items => items.reduce((a, b) => a + b.amount, 0);
+
+  // 금액 입력 계산기: "5000+3200-500" 같은 간단한 사칙연산 식을 입력하면 자동으로 합산
+  function evalAmountExpr(raw) {
+    if (raw === null || raw === undefined) return NaN;
+    const cleaned = String(raw).replace(/,/g, '').trim();
+    if (!cleaned) return NaN;
+    if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return NaN; // 숫자/사칙연산/괄호 외에는 거부
+    try {
+      const val = Function('"use strict"; return (' + cleaned + ')')();
+      return (typeof val === 'number' && isFinite(val)) ? val : NaN;
+    } catch (e) {
+      return NaN;
+    }
+  }
+  function attachAmountCalculator(input) {
+    input.type = 'text';
+    input.setAttribute('inputmode', 'decimal');
+    const preview = document.createElement('div');
+    preview.className = 'f-amt-preview';
+    input.insertAdjacentElement('afterend', preview);
+    const update = () => {
+      const raw = input.value.trim();
+      if (!raw || /^[0-9]+(\.[0-9]+)?$/.test(raw)) { preview.textContent = ''; preview.classList.remove('show'); return; }
+      const val = evalAmountExpr(raw);
+      if (Number.isFinite(val)) {
+        preview.textContent = '= ' + won(Math.round(val));
+        preview.classList.add('show');
+      } else {
+        preview.textContent = '계산할 수 없는 식이에요';
+        preview.classList.add('show');
+      }
+    };
+    input.addEventListener('input', update);
+    return preview;
+  }
   const esc = s => String(s).replace(/'/g, "''");
   const sqlVal = v => (v === null || v === undefined || v === '') ? 'NULL' : `'${esc(v)}'`;
   const boolVal = v => v === true || v === 't' || v === 'true' || v === 1;
@@ -931,18 +971,19 @@
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <input class="f-amt" type="number" placeholder="금액" min="0" step="1">
       <input class="f-memo" type="text" placeholder="메모 (선택)" maxlength="80">
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="금액 (예: 5000+3200)">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
       </div>
     `;
     catLine.appendChild(form);
-    form.querySelector('.f-amt').focus();
+    attachAmountCalculator(form.querySelector('.f-amt'));
+    form.querySelector('.f-memo').focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     form.querySelector('.save').addEventListener('click', async () => {
-      const amt = Number(form.querySelector('.f-amt').value);
+      const amt = evalAmountExpr(form.querySelector('.f-amt').value);
       const memo = form.querySelector('.f-memo').value.trim();
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
       if (!(amt > 0)) {
@@ -969,7 +1010,7 @@
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <input class="f-amt" type="number" placeholder="금액" min="0" step="1" value="${existingTxn ? existingTxn.amount : ''}">
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="금액 (예: 5000+3200)" value="${existingTxn ? existingTxn.amount : ''}">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
@@ -977,10 +1018,11 @@
     `;
     row.after(form);
     const input = form.querySelector('.f-amt');
+    attachAmountCalculator(input);
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     form.querySelector('.save').addEventListener('click', async () => {
-      const amt = Number(input.value);
+      const amt = evalAmountExpr(input.value);
       if (!(amt >= 0)) return;
       const saveBtn = form.querySelector('.save');
       saveBtn.disabled = true;
@@ -1378,7 +1420,7 @@
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <input class="f-amt" type="number" placeholder="이번 달 잔액" min="0" step="1" value="${current && current.balance !== null ? current.balance : ''}">
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="이번 달 잔액" value="${current && current.balance !== null ? current.balance : ''}">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
@@ -1386,10 +1428,11 @@
     `;
     row.after(form);
     const input = form.querySelector('.f-amt');
+    attachAmountCalculator(input);
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     form.querySelector('.save').addEventListener('click', async () => {
-      const val = Number(input.value);
+      const val = evalAmountExpr(input.value);
       if (!(val >= 0)) return;
       const saveBtn = form.querySelector('.save');
       saveBtn.disabled = true;
@@ -1449,19 +1492,20 @@
           <option value="자산">자산</option>
           <option value="부채">부채</option>
         </select>
-        <input class="f-bal" type="number" placeholder="이번 달 잔액" min="0" step="1">
+        <input class="f-bal" type="text" inputmode="decimal" placeholder="이번 달 잔액">
         <div class="f-actions">
           <button class="cancel" type="button">취소</button>
           <button class="save" type="button">저장</button>
         </div>
       `;
       root.appendChild(form);
+      attachAmountCalculator(form.querySelector('.f-bal'));
       form.querySelector('.f-name').focus();
       form.querySelector('.cancel').addEventListener('click', () => { root.innerHTML = ''; });
       form.querySelector('.save').addEventListener('click', async () => {
         const name = form.querySelector('.f-name').value.trim();
         const type = form.querySelector('.f-type').value;
-        const bal = Number(form.querySelector('.f-bal').value);
+        const bal = evalAmountExpr(form.querySelector('.f-bal').value);
         const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
         if (!name || !(bal >= 0)) {
           const e = document.createElement('div'); e.className = 'f-error';
