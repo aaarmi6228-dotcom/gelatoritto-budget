@@ -480,10 +480,16 @@
     border:1px solid var(--line); border-radius:10px; background:var(--paper-sunken);
     overflow:hidden;
   }
+  .cat-item-row.dragging{ opacity:.4; }
   .cat-item-head{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:8px 12px;
   }
+  .drag-handle{
+    flex:none; cursor:grab; color:var(--ink-faint); font-size:1rem; line-height:1;
+    padding:2px 2px; touch-action:none; user-select:none;
+  }
+  .drag-handle:active{ cursor:grabbing; }
   .cat-item-toggle{
     flex:1; display:flex; align-items:center; gap:8px; min-width:0;
     background:none; border:none; padding:0; cursor:pointer; text-align:left;
@@ -775,8 +781,7 @@
   function buildCategoryGroups(domain, group, items) {
     const names = allCategories
       .filter(row => row.domain === domain && row.type === group.txnType && boolVal(row.is_fixed) === group.isFixed)
-      .map(row => row.name)
-      .sort((a, b) => a.localeCompare(b, 'ko'));
+      .map(row => row.name); // 카테고리 관리에서 지정한 순서(sort_order)를 그대로 따름
     const byName = new Map();
     names.forEach(name => byName.set(name, []));
     items.forEach(it => {
@@ -1029,8 +1034,8 @@
     if (dbState !== 'ready') { root.innerHTML = '<div class="empty-hint">Supabase에 연결되면 카테고리를 관리할 수 있어요.</div>'; return; }
     try {
       const { data, error } = await supabaseClient.from('categories')
-        .select('id, domain, type, is_fixed, name')
-        .order('domain').order('type').order('is_fixed').order('name');
+        .select('id, domain, type, is_fixed, name, sort_order')
+        .order('domain').order('type').order('is_fixed').order('sort_order').order('name');
       if (error) throw error;
       allCategories = data || [];
       renderCategories();
@@ -1079,8 +1084,9 @@
                 .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
               const isOpen = openCategoryItemPanels.has(itemPanelKey(col.domain, group, r.name));
               return `
-                <div class="cat-item-row">
+                <div class="cat-item-row" data-cat-id="${r.id}">
                   <div class="cat-item-head">
+                    <span class="drag-handle" draggable="true" aria-hidden="true" title="드래그해서 순서 변경">⠿</span>
                     <button class="cat-item-toggle" type="button" aria-expanded="${isOpen}">
                       <svg class="chevron-sm" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
                       <span class="cname">${escapeHtml(r.name)}</span>
@@ -1122,10 +1128,56 @@
           btn.addEventListener('click', (e) => openCategoryItemForm(e.currentTarget, col.domain, group, btn.dataset.addItem));
         });
         block.querySelector('.cat-add-btn').addEventListener('click', (e) => openCategoryForm(e.currentTarget, col.domain, group));
+        attachCategoryDragHandlers(block.querySelector('.cat-item-list'), col.domain, group);
         wrap.appendChild(block);
       });
       root.appendChild(wrap);
     });
+  }
+
+  function attachCategoryDragHandlers(listEl, domain, group) {
+    if (!listEl) return;
+    listEl.querySelectorAll('.cat-item-row').forEach(rowEl => {
+      const handle = rowEl.querySelector('.drag-handle');
+      handle.addEventListener('dragstart', (e) => {
+        rowEl.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', rowEl.dataset.catId); // 일부 브라우저는 data 없이는 드래그를 시작하지 않음
+      });
+      handle.addEventListener('dragend', () => {
+        rowEl.classList.remove('dragging');
+        persistCategoryOrder(listEl, domain, group);
+      });
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const dragging = listEl.querySelector('.cat-item-row.dragging');
+      if (!dragging) return;
+      e.preventDefault();
+      const target = e.target.closest('.cat-item-row');
+      if (!target || target === dragging) return;
+      const rect = target.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.insertBefore(dragging, before ? target : target.nextSibling);
+    });
+  }
+
+  async function persistCategoryOrder(listEl, domain, group) {
+    const ids = Array.from(listEl.querySelectorAll('.cat-item-row')).map(el => el.dataset.catId);
+    const changed = [];
+    ids.forEach((id, i) => {
+      const newOrder = (i + 1) * 10;
+      const cat = allCategories.find(c => c.id === id);
+      if (cat && cat.sort_order !== newOrder) { cat.sort_order = newOrder; changed.push({ id, sort_order: newOrder }); }
+    });
+    if (!changed.length) return;
+    allCategories.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    if (ledgerData) renderLedger(); // 소득/지출 쪽도 바뀐 순서로 반영
+    try {
+      await Promise.all(changed.map(c => supabaseClient.from('categories').update({ sort_order: c.sort_order }).eq('id', c.id)));
+    } catch (err) {
+      const info = dbError(err); showBanner(info.code, info.detail);
+      await loadCategories(); // 저장 실패 시 서버 상태로 되돌림
+    }
   }
 
   function openCategoryForm(addBtn, domain, group) {
@@ -1168,8 +1220,10 @@
   }
 
   async function addCategory(domain, group, name) {
+    const existing = allCategories.filter(r => r.domain === domain && r.type === group.txnType && boolVal(r.is_fixed) === group.isFixed);
+    const nextOrder = existing.length ? Math.max(...existing.map(r => r.sort_order || 0)) + 10 : 10; // 새 카테고리는 항상 맨 뒤에 추가
     const { error } = await supabaseClient.from('categories').upsert({
-      domain, type: group.txnType, is_fixed: group.isFixed, name
+      domain, type: group.txnType, is_fixed: group.isFixed, name, sort_order: nextOrder
     }, { onConflict: 'domain,type,is_fixed,name', ignoreDuplicates: true });
     if (error) throw error;
   }
