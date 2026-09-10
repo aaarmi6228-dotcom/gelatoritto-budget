@@ -333,6 +333,18 @@
   .card.open .panel-outer{ grid-template-rows:1fr; }
   .panel-inner{ overflow:hidden; min-height:0; }
   .rows{ border-top:1px solid var(--line); }
+  .net-income-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:0 16px 14px; padding:10px 12px;
+    border-top:1px dashed var(--line-strong);
+    padding-top:12px;
+  }
+  .net-income-row .label{ font-size:.8rem; font-weight:700; color:var(--ink); }
+  .net-income-row .label small{ display:block; margin-top:2px; font-size:.68rem; font-weight:500; color:var(--ink-faint); }
+  .net-income-row .val{
+    font-family:var(--font-mono); font-size:.95rem; font-weight:700; color:var(--income);
+    font-variant-numeric:tabular-nums; flex:none;
+  }
   .row{
     display:flex;
     align-items:center;
@@ -767,6 +779,11 @@
     return boolVal(isFixed) ? GROUPS[1] : GROUPS[2];
   }
 
+  // 사업 수입 채널별 수수료율 — 카드 2.2%, 쿠팡/배민 35%. 목록에 없는 채널(현금 등)은 수수료 없음
+  const INCOME_FEE_RATES = { '카드': 0.022, '쿠팡': 0.35, '배민': 0.35 };
+  const netIncomeAmount = item => Math.round(item.amount * (1 - (INCOME_FEE_RATES[item.memo] || 0)));
+  const netIncomeTotal = items => items.reduce((s, it) => s + netIncomeAmount(it), 0);
+
   /* ---------- Supabase connection ---------- */
   const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {};
   const supabaseClient = window.supabase && SUPABASE_CONFIG.anonKey && !SUPABASE_CONFIG.anonKey.startsWith('REPLACE_')
@@ -832,7 +849,7 @@
           .eq('txn_date', monthDateStr(currentOffset))
           .order('category'),
         supabaseClient.from('transactions')
-          .select('domain, type, amount')
+          .select('domain, type, amount, memo')
           .eq('txn_date', monthDateStr(currentOffset - 1)),
       ]);
       if (error) throw error;
@@ -846,8 +863,15 @@
       if (!prevError && prevRows) {
         prevLedgerTotals = { household: { income: 0, expense: 0 }, business: { income: 0, expense: 0 } };
         prevRows.forEach(r => {
-          const t = prevLedgerTotals[domainKey(r.domain)];
-          if (r.type === '수입') t.income += Number(r.amount); else t.expense += Number(r.amount);
+          const key = domainKey(r.domain);
+          const t = prevLedgerTotals[key];
+          if (r.type === '수입') {
+            // 사업 수입은 실수령 금액(수수료 제외) 기준으로 지난달과 비교
+            const rate = (key === 'business') ? (INCOME_FEE_RATES[r.memo] || 0) : 0;
+            t.income += Math.round(Number(r.amount) * (1 - rate));
+          } else {
+            t.expense += Number(r.amount);
+          }
         });
       } else {
         prevLedgerTotals = null; // 지난달 데이터를 못 불러오면 비교 표시는 그냥 생략
@@ -904,7 +928,8 @@
     grid.innerHTML = '';
     Object.entries(COLUMNS).forEach(([colKey, col]) => {
       const data = ledgerData[colKey];
-      const totalIncome = sum(data.income);
+      // 사업 총수입은 카드/쿠팡/배민 수수료를 뺀 실수령 금액 기준으로 계산
+      const totalIncome = colKey === 'business' ? netIncomeTotal(data.income) : sum(data.income);
       const totalExpense = sum(data.fixed) + sum(data.variable);
       const net = totalIncome - totalExpense;
 
@@ -992,6 +1017,12 @@
                   </div>
                 `).join('')}
               </div>
+              ${(colKey === 'business' && group.key === 'income') ? `
+                <div class="net-income-row">
+                  <span class="label">실수령 금액<small>(카드 2.2%·쿠팡/배민 35% 수수료 제외)</small></span>
+                  <span class="val">${won(Math.round(totalIncome))}</span>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
