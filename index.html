@@ -1068,12 +1068,14 @@
       </div>
     `;
     catLine.appendChild(form);
-    attachAmountCalculator(form.querySelector('.f-amt'));
-    form.querySelector('.f-memo').focus();
+    const amtInput = form.querySelector('.f-amt');
+    const memoInput = form.querySelector('.f-memo');
+    attachAmountCalculator(amtInput);
+    memoInput.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
-    form.querySelector('.save').addEventListener('click', async () => {
-      const amt = evalAmountExpr(form.querySelector('.f-amt').value);
-      const memo = form.querySelector('.f-memo').value.trim();
+    const submit = async () => {
+      const amt = evalAmountExpr(amtInput.value);
+      const memo = memoInput.value.trim();
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
       if (!(amt > 0)) {
         const e = document.createElement('div'); e.className = 'f-error';
@@ -1090,7 +1092,10 @@
         const e = document.createElement('div'); e.className = 'f-error';
         e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
       }
-    });
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    memoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    amtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   function openTemplateItemEditor(btn, colKey, group, categoryName, itemName, existingTxn) {
@@ -1110,7 +1115,7 @@
     attachAmountCalculator(input);
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
-    form.querySelector('.save').addEventListener('click', async () => {
+    const submit = async () => {
       const amt = evalAmountExpr(input.value);
       if (!(amt >= 0)) return;
       const saveBtn = form.querySelector('.save');
@@ -1127,7 +1132,9 @@
         saveBtn.disabled = false;
         showBanner((err && err.code) || 'upstream_error', err && (err.message || err.server));
       }
-    });
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   async function updateTransactionAmount(id, amount) {
@@ -1637,7 +1644,7 @@
     attachAmountCalculator(input);
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
-    form.querySelector('.save').addEventListener('click', async () => {
+    const submit = async () => {
       const val = evalAmountExpr(input.value);
       if (!(val >= 0)) return;
       const saveBtn = form.querySelector('.save');
@@ -1650,7 +1657,9 @@
         saveBtn.disabled = false;
         showBanner((err && err.code) || 'upstream_error', err && (err.message || err.server));
       }
-    });
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   async function setAccountBalance(accountId, balance) {
@@ -1705,13 +1714,15 @@
         </div>
       `;
       root.appendChild(form);
-      attachAmountCalculator(form.querySelector('.f-bal'));
-      form.querySelector('.f-name').focus();
+      const nameInput = form.querySelector('.f-name');
+      const balInput = form.querySelector('.f-bal');
+      attachAmountCalculator(balInput);
+      nameInput.focus();
       form.querySelector('.cancel').addEventListener('click', () => { root.innerHTML = ''; });
-      form.querySelector('.save').addEventListener('click', async () => {
-        const name = form.querySelector('.f-name').value.trim();
+      const submit = async () => {
+        const name = nameInput.value.trim();
         const type = form.querySelector('.f-type').value;
-        const bal = evalAmountExpr(form.querySelector('.f-bal').value);
+        const bal = evalAmountExpr(balInput.value);
         const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
         if (!name || !(bal >= 0)) {
           const e = document.createElement('div'); e.className = 'f-error';
@@ -1728,7 +1739,10 @@
           const e = document.createElement('div'); e.className = 'f-error';
           e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
         }
-      });
+      };
+      form.querySelector('.save').addEventListener('click', submit);
+      nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+      balInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
     });
   }
 
