@@ -656,6 +656,11 @@
     { key: 'fixed', type: 'fixed', name: '고정지출', txnType: '지출', isFixed: true },
     { key: 'variable', type: 'variable', name: '변동지출', txnType: '지출', isFixed: false },
   ];
+  // 카드 펼침/접힘 상태를 화면 새로고침(항목 추가·삭제 등)과 무관하게 유지하기 위한 상태값
+  const cardOpenState = {
+    household: { income: true, fixed: false, variable: false },
+    business: { income: true, fixed: false, variable: false },
+  };
   function groupOf(txnType, isFixed) {
     if (txnType === '수입') return GROUPS[0];
     return boolVal(isFixed) ? GROUPS[1] : GROUPS[2];
@@ -781,10 +786,11 @@
         const items = data[group.key];
         const total = sum(items);
         const catGroups = buildCategoryGroups(col.domain, group, items);
+        const isOpen = cardOpenState[colKey][group.key];
         const card = document.createElement('div');
-        card.className = `card type-${group.type}` + (idx === 0 ? ' open' : '');
+        card.className = `card type-${group.type}` + (isOpen ? ' open' : '');
         card.innerHTML = `
-          <button class="card-head" aria-expanded="${idx === 0}">
+          <button class="card-head" aria-expanded="${isOpen}">
             <span class="left">
               <span class="dot"></span>
               <span class="name">${group.name}</span>
@@ -830,8 +836,9 @@
         `;
         const head = card.querySelector('.card-head');
         head.addEventListener('click', () => {
-          const isOpen = card.classList.toggle('open');
-          head.setAttribute('aria-expanded', String(isOpen));
+          const nowOpen = card.classList.toggle('open');
+          head.setAttribute('aria-expanded', String(nowOpen));
+          cardOpenState[colKey][group.key] = nowOpen;
         });
         card.querySelectorAll('.rdel').forEach(btn => {
           btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTransaction(btn.dataset.id); });
