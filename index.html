@@ -341,6 +341,30 @@
     color:var(--ink);
   }
 
+  .cat-line:not(:last-child){ border-bottom:1px solid var(--line); }
+  .cat-line-head{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:10px 18px 10px 37px; font-size:.88rem;
+  }
+  .cat-line-head .cname{ color:var(--ink-soft); font-weight:600; }
+  .cat-line-head .cright{ display:flex; align-items:center; gap:8px; }
+  .cat-line-head .camt{
+    font-family:var(--font-mono);
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+  }
+  .cat-line-head .cadd{
+    width:22px; height:22px; flex:none; border:none; border-radius:50%;
+    background:var(--accent-soft); color:var(--accent); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .cat-line-head .cadd:hover{ background:var(--accent); color:#fff; }
+  .cat-line-head .cadd svg{ width:12px; height:12px; }
+  .cat-txns{ background:var(--paper-sunken); }
+  .cat-txns .row{ padding-left:54px; }
+  .cat-txns .row .rname{ color:var(--ink-faint); font-size:.82rem; }
+  .cat-line .entry-form{ padding-left:37px; }
+
   @media (prefers-reduced-motion: reduce){
     .chevron, .panel-outer{ transition:none; }
   }
@@ -715,6 +739,20 @@
     }
   }
 
+  function buildCategoryGroups(domain, group, items) {
+    const names = allCategories
+      .filter(row => row.domain === domain && row.type === group.txnType && boolVal(row.is_fixed) === group.isFixed)
+      .map(row => row.name)
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+    const byName = new Map();
+    names.forEach(name => byName.set(name, []));
+    items.forEach(it => {
+      if (!byName.has(it.name)) byName.set(it.name, []); // 카테고리 관리에서 삭제/변경된 이름도 데이터가 사라지지 않도록 표시
+      byName.get(it.name).push(it);
+    });
+    return Array.from(byName.entries()).map(([name, list]) => ({ name, items: list, total: sum(list) }));
+  }
+
   function renderLedger() {
     const grid = document.getElementById('ledgerGrid');
     grid.innerHTML = '';
@@ -742,6 +780,7 @@
       GROUPS.forEach((group, idx) => {
         const items = data[group.key];
         const total = sum(items);
+        const catGroups = buildCategoryGroups(col.domain, group, items);
         const card = document.createElement('div');
         card.className = `card type-${group.type}` + (idx === 0 ? ' open' : '');
         card.innerHTML = `
@@ -749,7 +788,7 @@
             <span class="left">
               <span class="dot"></span>
               <span class="name">${group.name}</span>
-              <span class="count">${items.length}건</span>
+              <span class="count">${catGroups.length}개 카테고리</span>
             </span>
             <span class="right">
               <span class="total">${signed(total, group.type)}</span>
@@ -759,19 +798,33 @@
           <div class="panel-outer">
             <div class="panel-inner">
               <div class="rows">
-                ${items.length === 0 ? '<div class="empty-hint">아직 등록된 항목이 없어요.</div>' : items.map(it => `
-                  <div class="row" data-id="${it.id}">
-                    <span class="rname">${escapeHtml(it.name)}</span>
-                    <span class="rright">
-                      <span class="ramt">${signed(it.amount, group.type)}</span>
-                      <button class="rdel" type="button" aria-label="삭제" data-id="${it.id}">
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
-                      </button>
-                    </span>
+                ${catGroups.length === 0 ? '<div class="empty-hint">등록된 카테고리가 없어요. 카테고리 관리에서 먼저 추가해주세요.</div>' : catGroups.map(cg => `
+                  <div class="cat-line">
+                    <div class="cat-line-head">
+                      <span class="cname">${escapeHtml(cg.name)}</span>
+                      <span class="cright">
+                        <span class="camt">${signed(cg.total, group.type)}</span>
+                        <button class="cadd" type="button" aria-label="${escapeHtml(cg.name)} 항목 추가" data-category="${escapeHtml(cg.name)}">
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+                        </button>
+                      </span>
+                    </div>
+                    ${cg.items.length ? `<div class="cat-txns">
+                      ${cg.items.map(it => `
+                        <div class="row" data-id="${it.id}">
+                          <span class="rname">${it.memo ? escapeHtml(it.memo) : '메모 없음'}</span>
+                          <span class="rright">
+                            <span class="ramt">${signed(it.amount, group.type)}</span>
+                            <button class="rdel" type="button" aria-label="삭제" data-id="${it.id}">
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                            </button>
+                          </span>
+                        </div>
+                      `).join('')}
+                    </div>` : ''}
                   </div>
                 `).join('')}
               </div>
-              <button class="add-row" type="button">+ 항목 추가</button>
             </div>
           </div>
         `;
@@ -783,54 +836,46 @@
         card.querySelectorAll('.rdel').forEach(btn => {
           btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTransaction(btn.dataset.id); });
         });
-        const addBtn = card.querySelector('.add-row');
-        addBtn.addEventListener('click', (e) => { e.stopPropagation(); openEntryForm(addBtn, colKey, group); });
+        card.querySelectorAll('.cadd').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); openCategoryEntryForm(btn, colKey, group, btn.dataset.category); });
+        });
         cardsRoot.appendChild(card);
       });
       grid.appendChild(column);
     });
   }
 
-  function openEntryForm(addBtn, colKey, group) {
-    const existing = addBtn.nextElementSibling;
-    if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
-    const domain = COLUMNS[colKey].domain;
-    const categoryOptions = allCategories
-      .filter(row => row.domain === domain && row.type === group.txnType && boolVal(row.is_fixed) === group.isFixed)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  function openCategoryEntryForm(addBtn, colKey, group, categoryName) {
+    const catLine = addBtn.closest('.cat-line');
+    const existing = catLine.querySelector('.entry-form');
+    if (existing) { existing.remove(); return; }
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <select class="f-cat" aria-label="카테고리">
-        <option value="">카테고리 선택</option>
-        ${categoryOptions.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('')}
-      </select>
       <input class="f-amt" type="number" placeholder="금액" min="0" step="1">
       <input class="f-memo" type="text" placeholder="메모 (선택)" maxlength="80">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
       </div>
-      ${categoryOptions.length ? '' : '<div class="f-error">등록된 카테고리가 없어요. 카테고리 관리에서 먼저 추가해주세요.</div>'}
     `;
-    addBtn.after(form);
-    form.querySelector('.f-cat').focus();
+    catLine.appendChild(form);
+    form.querySelector('.f-amt').focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     form.querySelector('.save').addEventListener('click', async () => {
-      const name = form.querySelector('.f-cat').value.trim();
       const amt = Number(form.querySelector('.f-amt').value);
       const memo = form.querySelector('.f-memo').value.trim();
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
-      if (!name || !(amt > 0)) {
+      if (!(amt > 0)) {
         const e = document.createElement('div'); e.className = 'f-error';
-        e.textContent = '카테고리와 0보다 큰 금액을 입력해주세요.'; form.appendChild(e); return;
+        e.textContent = '0보다 큰 금액을 입력해주세요.'; form.appendChild(e); return;
       }
       const saveBtn = form.querySelector('.save');
       saveBtn.disabled = true;
       try {
-        await addTransaction(colKey, group, name, amt, memo);
+        await addTransaction(colKey, group, categoryName, amt, memo);
         form.remove();
-        await Promise.all([loadLedger(), loadCategories()]);
+        await loadLedger();
       } catch (err) {
         saveBtn.disabled = false;
         const e = document.createElement('div'); e.className = 'f-error';
@@ -871,6 +916,7 @@
       if (error) throw error;
       allCategories = data || [];
       renderCategories();
+      if (ledgerData) renderLedger(); // 소득/지출 목록도 최신 카테고리 기준으로 다시 그림
     } catch (err) {
       root.innerHTML = '';
       const info = dbError(err); showBanner(info.code, info.detail);
