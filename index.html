@@ -260,6 +260,13 @@
   }
   .summary-strip .cell.income .val{ color:var(--income); }
   .summary-strip .cell.expense .val{ color:var(--exp-fixed); }
+  .summary-strip .cmp{
+    font-size:.68rem; font-weight:600; margin-top:4px;
+    font-variant-numeric:tabular-nums; white-space:normal; word-break:keep-all;
+  }
+  .summary-strip .cmp.good{ color:var(--income); }
+  .summary-strip .cmp.bad{ color:var(--exp-fixed); }
+  .summary-strip .cmp.flat{ color:var(--ink-faint); font-weight:500; }
 
   .cards{ display:flex; flex-direction:column; gap:14px; }
 
@@ -800,7 +807,9 @@
 
   /* ---------- 소득/지출 ---------- */
   let ledgerData = null;
+  let prevLedgerTotals = null; // 지난달 총수입/총지출 (전월 대비 증감 표시용)
   let ledgerToken = 0;
+  const domainKey = d => d === '가계' ? 'household' : 'business';
 
   function renderLedgerUnavailable() {
     document.getElementById('ledgerGrid').innerHTML = '<div class="empty-hint">Supabase에 연결되면 항목을 추가할 수 있어요.</div>';
@@ -812,25 +821,47 @@
     const token = ++ledgerToken;
     if (!ledgerData) grid.innerHTML = '<div class="empty-hint">불러오는 중…</div>'; // 첫 로딩 때만 표시 — 새로고침마다 화면을 비우면 스크롤 위치가 맨 위로 튐
     try {
-      const { data: rows, error } = await supabaseClient.from('transactions')
-        .select('id, domain, type, is_fixed, category, amount, memo')
-        .eq('txn_date', monthDateStr(currentOffset))
-        .order('category');
+      const [{ data: rows, error }, { data: prevRows, error: prevError }] = await Promise.all([
+        supabaseClient.from('transactions')
+          .select('id, domain, type, is_fixed, category, amount, memo')
+          .eq('txn_date', monthDateStr(currentOffset))
+          .order('category'),
+        supabaseClient.from('transactions')
+          .select('domain, type, amount')
+          .eq('txn_date', monthDateStr(currentOffset - 1)),
+      ]);
       if (error) throw error;
       if (token !== ledgerToken) return;
       ledgerData = { household: { income: [], fixed: [], variable: [] }, business: { income: [], fixed: [], variable: [] } };
-      const domainKey = d => d === '가계' ? 'household' : 'business';
       rows.forEach(r => {
         const col = ledgerData[domainKey(r.domain)];
         const g = groupOf(r.type, r.is_fixed);
         col[g.key].push({ id: r.id, name: r.category, amount: Number(r.amount), memo: r.memo });
       });
+      if (!prevError && prevRows) {
+        prevLedgerTotals = { household: { income: 0, expense: 0 }, business: { income: 0, expense: 0 } };
+        prevRows.forEach(r => {
+          const t = prevLedgerTotals[domainKey(r.domain)];
+          if (r.type === '수입') t.income += Number(r.amount); else t.expense += Number(r.amount);
+        });
+      } else {
+        prevLedgerTotals = null; // 지난달 데이터를 못 불러오면 비교 표시는 그냥 생략
+      }
       renderLedger();
     } catch (err) {
       if (token !== ledgerToken) return;
       grid.innerHTML = '';
       const info = dbError(err); showBanner(info.code, info.detail);
     }
+  }
+
+  // 이번달 값을 지난달과 비교해 증가/감소 표시를 만듦. goodWhenUp: 늘어나는 게 긍정적인 지표인지(수입=true, 지출=false)
+  function renderCompare(current, prev, goodWhenUp) {
+    const diff = current - prev;
+    if (diff === 0) return '<div class="cmp flat">지난달과 동일</div>';
+    const up = diff > 0;
+    const cls = (up === goodWhenUp) ? 'good' : 'bad';
+    return `<div class="cmp ${cls}">${up ? '▲' : '▼'} ${won(Math.abs(diff))} ${up ? '증가' : '감소'}</div>`;
   }
 
   function buildCategoryGroups(domain, group, items) {
@@ -880,8 +911,16 @@
           <h2>${col.label}</h2>
         </div>
         <div class="summary-strip">
-          <div class="cell income"><div class="label">총수입</div><div class="val">${won(totalIncome)}</div></div>
-          <div class="cell expense"><div class="label">총지출</div><div class="val">${won(totalExpense)}</div></div>
+          <div class="cell income">
+            <div class="label">총수입</div>
+            <div class="val">${won(totalIncome)}</div>
+            ${prevLedgerTotals ? renderCompare(totalIncome, prevLedgerTotals[colKey].income, true) : ''}
+          </div>
+          <div class="cell expense">
+            <div class="label">총지출</div>
+            <div class="val">${won(totalExpense)}</div>
+            ${prevLedgerTotals ? renderCompare(totalExpense, prevLedgerTotals[colKey].expense, false) : ''}
+          </div>
           <div class="cell"><div class="label">순액</div><div class="val" style="color:var(--accent)">${won(net)}</div></div>
         </div>
         <div class="cards"></div>
