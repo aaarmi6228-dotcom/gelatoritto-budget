@@ -588,12 +588,14 @@
     <section class="page" id="page-categories">
       <h3 class="section-note">대카테고리별 소카테고리 목록입니다. 여기서 직접 추가/삭제할 수 있어요.</h3>
       <div id="categoriesRoot"></div>
+      <h3 class="section-note" style="margin-top:34px;">자산현황에 표시되는 계좌 목록입니다. 여기서도 추가/삭제할 수 있어요.</h3>
+      <div id="accountCategoriesRoot"></div>
     </section>
   </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./supabase-config.js"></script>
+<script src="/supabase-config.js"></script>
 <script>
   const won = n => n.toLocaleString('ko-KR') + '원';
   const signed = (n, type) => (type === 'income' ? '+' : '−') + won(Math.abs(n));
@@ -790,24 +792,16 @@
   function openEntryForm(addBtn, colKey, group) {
     const existing = addBtn.nextElementSibling;
     if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
-    const domain = COLUMNS[colKey].domain;
-    const categoryOptions = allCategories
-      .filter(row => row.domain === domain && row.type === group.txnType && boolVal(row.is_fixed) === group.isFixed)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <select class="f-cat" aria-label="카테고리">
-        <option value="">카테고리 선택</option>
-        ${categoryOptions.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('')}
-      </select>
+      <input class="f-cat" type="text" placeholder="항목명 (예: 식비)" maxlength="40">
       <input class="f-amt" type="number" placeholder="금액" min="0" step="1">
       <input class="f-memo" type="text" placeholder="메모 (선택)" maxlength="80">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
       </div>
-      ${categoryOptions.length ? '' : '<div class="f-error">등록된 카테고리가 없어요. 카테고리 관리에서 먼저 추가해주세요.</div>'}
     `;
     addBtn.after(form);
     form.querySelector('.f-cat').focus();
@@ -819,7 +813,7 @@
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
       if (!name || !(amt > 0)) {
         const e = document.createElement('div'); e.className = 'f-error';
-        e.textContent = '카테고리와 0보다 큰 금액을 입력해주세요.'; form.appendChild(e); return;
+        e.textContent = '항목명과 0보다 큰 금액을 입력해주세요.'; form.appendChild(e); return;
       }
       const saveBtn = form.querySelector('.save');
       saveBtn.disabled = true;
@@ -1035,6 +1029,7 @@
     document.getElementById('assetBreakdown').querySelectorAll('.edit-bal').forEach(btn => {
       btn.addEventListener('click', () => openBalanceEditor(btn));
     });
+    renderAccountCategories();
   }
 
   function openBalanceEditor(btn) {
@@ -1101,6 +1096,82 @@
       { onConflict: 'account_id,snapshot_month' }
     );
     if (error) throw error;
+  }
+
+  async function addAccountName(type, name) {
+    const { error } = await supabaseClient.from('accounts').insert({ name, account_type: type });
+    if (error) throw error;
+  }
+
+  function renderAccountCategories() {
+    const root = document.getElementById('accountCategoriesRoot');
+    if (!root) return;
+    const groups = [
+      { key: '자산', label: '자산', dotVar: '--income' },
+      { key: '부채', label: '부채', dotVar: '--exp-fixed' },
+    ];
+    root.innerHTML = groups.map(g => {
+      const rows = accountsData.filter(a => a.account_type === g.key);
+      return `
+        <div class="cat-block">
+          <div class="cat-block-head">
+            <span class="name"><span class="dot" style="background:var(${g.dotVar})"></span>${g.label}</span>
+            <span class="count">${rows.length}개 계좌</span>
+          </div>
+          <div class="chips" data-account-type="${g.key}">
+            ${rows.map(a => `<span class="chip">${escapeHtml(a.name)}<button class="chip-del" type="button" data-id="${a.id}" aria-label="삭제">×</button></span>`).join('')}
+            <button class="chip add" type="button">+ 계좌 추가</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    root.querySelectorAll('.chip-del').forEach(btn => {
+      btn.addEventListener('click', () => deleteAccount(btn.dataset.id));
+    });
+    root.querySelectorAll('.chip.add').forEach(btn => {
+      const type = btn.closest('.chips').dataset.accountType;
+      btn.addEventListener('click', (e) => openAccountCategoryForm(e.currentTarget, type));
+    });
+  }
+
+  function openAccountCategoryForm(addChip, type) {
+    const chips = addChip.closest('.chips');
+    const existing = chips.querySelector('.entry-form');
+    if (existing) { existing.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-cat" type="text" placeholder="새 계좌/자산 이름" maxlength="40">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">추가</button>
+      </div>
+    `;
+    chips.appendChild(form);
+    const input = form.querySelector('.f-cat');
+    input.focus();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const name = input.value.trim();
+      const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
+      if (!name) {
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = '계좌 이름을 입력해주세요.'; form.appendChild(e); return;
+      }
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        await addAccountName(type, name);
+        form.remove();
+        await loadAssets();
+      } catch (err) {
+        saveBtn.disabled = false;
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   function setupAccountForm() {
