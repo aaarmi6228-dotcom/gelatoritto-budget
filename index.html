@@ -757,6 +757,12 @@
     return Array.from(byName.entries()).map(([name, list]) => ({ name, items: list, total: sum(list) }));
   }
 
+  const cardOpenState = {}; // 카드 펼침 상태를 기억해서 등록/삭제 후에도 접히지 않게 함
+  function isCardOpen(colKey, group, idx) {
+    const k = colKey + ':' + group.key;
+    return k in cardOpenState ? cardOpenState[k] : idx === 0;
+  }
+
   function renderLedger() {
     const grid = document.getElementById('ledgerGrid');
     grid.innerHTML = '';
@@ -786,9 +792,10 @@
         const total = sum(items);
         const catGroups = buildCategoryGroups(col.domain, group, items);
         const card = document.createElement('div');
-        card.className = `card type-${group.type}` + (idx === 0 ? ' open' : '');
+        const startOpen = isCardOpen(colKey, group, idx);
+        card.className = `card type-${group.type}` + (startOpen ? ' open' : '');
         card.innerHTML = `
-          <button class="card-head" aria-expanded="${idx === 0}">
+          <button class="card-head" aria-expanded="${startOpen}">
             <span class="left">
               <span class="dot"></span>
               <span class="name">${group.name}</span>
@@ -835,6 +842,7 @@
         const head = card.querySelector('.card-head');
         head.addEventListener('click', () => {
           const isOpen = card.classList.toggle('open');
+          cardOpenState[colKey + ':' + group.key] = isOpen;
           head.setAttribute('aria-expanded', String(isOpen));
         });
         card.querySelectorAll('.rdel').forEach(btn => {
@@ -866,7 +874,8 @@
     catLine.appendChild(form);
     form.querySelector('.f-amt').focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
-    form.querySelector('.save').addEventListener('click', async () => {
+    const submit = async () => {
+      if (form.querySelector('.save').disabled) return;
       const amt = Number(form.querySelector('.f-amt').value);
       const memo = form.querySelector('.f-memo').value.trim();
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
@@ -885,6 +894,10 @@
         const e = document.createElement('div'); e.className = 'f-error';
         e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
       }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    form.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); } });
     });
   }
 
@@ -995,7 +1008,7 @@
       }
     };
     form.querySelector('.save').addEventListener('click', submit);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) submit(); });
   }
 
   async function addCategory(domain, group, name) {
@@ -1115,6 +1128,7 @@
     row.after(form);
     const input = form.querySelector('.f-amt');
     input.focus();
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); form.querySelector('.save').click(); } });
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     form.querySelector('.save').addEventListener('click', async () => {
       const val = Number(input.value);
@@ -1239,7 +1253,7 @@
       }
     };
     form.querySelector('.save').addEventListener('click', submit);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) submit(); });
   }
 
   function setupAccountForm() {
@@ -1263,6 +1277,9 @@
       `;
       root.appendChild(form);
       form.querySelector('.f-name').focus();
+      form.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); form.querySelector('.save').click(); } });
+      });
       form.querySelector('.cancel').addEventListener('click', () => { root.innerHTML = ''; });
       form.querySelector('.save').addEventListener('click', async () => {
         const name = form.querySelector('.f-name').value.trim();
