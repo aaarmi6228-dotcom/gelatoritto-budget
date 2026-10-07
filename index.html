@@ -260,6 +260,13 @@
   }
   .summary-strip .cell.income .val{ color:var(--income); }
   .summary-strip .cell.expense .val{ color:var(--exp-fixed); }
+  .summary-strip .cmp{
+    font-size:.68rem; font-weight:600; margin-top:4px;
+    font-variant-numeric:tabular-nums; white-space:normal; word-break:keep-all;
+  }
+  .summary-strip .cmp.good{ color:var(--income); }
+  .summary-strip .cmp.bad{ color:var(--exp-fixed); }
+  .summary-strip .cmp.flat{ color:var(--ink-faint); font-weight:500; }
 
   .cards{ display:flex; flex-direction:column; gap:14px; }
 
@@ -326,6 +333,18 @@
   .card.open .panel-outer{ grid-template-rows:1fr; }
   .panel-inner{ overflow:hidden; min-height:0; }
   .rows{ border-top:1px solid var(--line); }
+  .net-income-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:0 16px 14px; padding:10px 12px;
+    border-top:1px dashed var(--line-strong);
+    padding-top:12px;
+  }
+  .net-income-row .label{ font-size:.8rem; font-weight:700; color:var(--ink); }
+  .net-income-row .label small{ display:block; margin-top:2px; font-size:.68rem; font-weight:500; color:var(--ink-faint); }
+  .net-income-row .val{
+    font-family:var(--font-mono); font-size:.95rem; font-weight:700; color:var(--income);
+    font-variant-numeric:tabular-nums; flex:none;
+  }
   .row{
     display:flex;
     align-items:center;
@@ -477,6 +496,60 @@
   .chip.add:hover{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
   .chips .entry-form{ flex-basis:100%; border-top:none; padding:8px 0 0; background:none; }
 
+  .cat-item-list{ display:flex; flex-direction:column; gap:6px; }
+  .cat-item-row{
+    border:1px solid var(--line); border-radius:10px; background:var(--paper-sunken);
+    overflow:hidden;
+  }
+  .cat-item-row.dragging{ opacity:.4; }
+  .cat-item-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 12px;
+  }
+  .drag-handle{
+    flex:none; cursor:grab; color:var(--ink-faint); font-size:1rem; line-height:1;
+    padding:2px 2px; touch-action:none; user-select:none;
+  }
+  .drag-handle:active{ cursor:grabbing; }
+  .cat-item-toggle{
+    flex:1; display:flex; align-items:center; gap:8px; min-width:0;
+    background:none; border:none; padding:0; cursor:pointer; text-align:left;
+    font-family:inherit; color:inherit;
+  }
+  .cat-item-toggle .chevron-sm{ width:14px; height:14px; color:var(--ink-faint); flex:none; transition:transform .2s ease; }
+  .cat-item-toggle[aria-expanded="true"] .chevron-sm{ transform:rotate(180deg); }
+  .cat-item-toggle .cname{ font-size:.85rem; font-weight:600; color:var(--ink); }
+  .cat-item-toggle .isub-count{ font-size:.75rem; color:var(--ink-faint); }
+  .cat-item-head > .chip-del{
+    border:none; background:none; color:var(--ink-faint); cursor:pointer;
+    font-size:1.1em; line-height:1; padding:2px 4px; flex:none; font-family:var(--font-body);
+  }
+  .cat-item-head > .chip-del:hover{ color:var(--exp-fixed); }
+  .cat-item-sub{ padding:0 12px 10px 30px; }
+  .cat-item-sub .chips{ gap:6px; }
+  .cat-item-sub .chip{ font-size:.78rem; padding:4px 10px; background:var(--paper-raised); }
+  .cat-item-sub .cat-add-btn.chip{ margin-top:4px; }
+  .subitem-list{ display:flex; flex-direction:column; gap:5px; margin-bottom:8px; }
+  .subitem-row{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 8px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper-raised); font-size:.78rem;
+  }
+  .subitem-row.dragging{ opacity:.4; }
+  .subitem-name{ flex:1; min-width:0; color:var(--ink-soft); }
+  .subitem-row .chip-del{
+    border:none; background:none; color:var(--ink-faint); cursor:pointer;
+    font-size:1em; line-height:1; padding:0; flex:none; font-family:var(--font-body);
+  }
+  .subitem-row .chip-del:hover{ color:var(--exp-fixed); }
+  .subitem-edit{
+    border:none; background:none; color:var(--ink-faint); cursor:pointer;
+    font-size:.82em; line-height:1; padding:0; flex:none; font-family:var(--font-body);
+  }
+  .subitem-edit:hover{ color:var(--accent); }
+  .drag-handle.sm{ font-size:.85rem; padding:0; }
+  .cat-add-btn{ margin-top:12px; }
+
   h3.section-note{
     font-size:.78rem;
     color:var(--ink-faint);
@@ -543,8 +616,8 @@
     background-repeat:no-repeat; background-position:right 10px center; padding-right:28px;
   }
   .entry-form .f-cat{ flex:1 1 110px; min-width:90px; }
-  .entry-form input.f-amt{ width:130px; font-family:var(--font-mono); }
-  .entry-form input.f-memo{ flex:1 1 100px; min-width:90px; }
+  .entry-form input.f-amt{ flex:1 1 180px; min-width:140px; font-family:var(--font-mono); }
+  .entry-form input.f-memo{ flex:0 1 70px; min-width:60px; }
   .entry-form .f-actions{ display:flex; gap:6px; margin-left:auto; }
   .entry-form button{
     font-family:var(--font-body); font-size:.82rem; font-weight:600;
@@ -554,6 +627,11 @@
   .entry-form button.save:disabled{ opacity:.5; cursor:not-allowed; }
   .entry-form button.cancel{ background:none; color:var(--ink-faint); border-color:var(--line-strong); }
   .entry-form .f-error{ flex-basis:100%; font-size:.78rem; color:var(--exp-fixed); }
+  .f-amt-preview{
+    flex-basis:100%; font-size:.78rem; color:var(--accent); font-family:var(--font-mono);
+    font-weight:600; display:none;
+  }
+  .f-amt-preview.show{ display:block; }
 
   .empty-hint{ padding:18px; text-align:center; color:var(--ink-faint); font-size:.85rem; }
 
@@ -630,6 +708,41 @@
   const won = n => n.toLocaleString('ko-KR') + '원';
   const signed = (n, type) => (type === 'income' ? '+' : '−') + won(Math.abs(n));
   const sum = items => items.reduce((a, b) => a + b.amount, 0);
+
+  // 금액 입력 계산기: "5000+3200-500" 같은 간단한 사칙연산 식을 입력하면 자동으로 합산
+  function evalAmountExpr(raw) {
+    if (raw === null || raw === undefined) return NaN;
+    const cleaned = String(raw).replace(/,/g, '').trim();
+    if (!cleaned) return NaN;
+    if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return NaN; // 숫자/사칙연산/괄호 외에는 거부
+    try {
+      const val = Function('"use strict"; return (' + cleaned + ')')();
+      return (typeof val === 'number' && isFinite(val)) ? val : NaN;
+    } catch (e) {
+      return NaN;
+    }
+  }
+  function attachAmountCalculator(input) {
+    input.type = 'text';
+    input.setAttribute('inputmode', 'decimal');
+    const preview = document.createElement('div');
+    preview.className = 'f-amt-preview';
+    input.insertAdjacentElement('afterend', preview);
+    const update = () => {
+      const raw = input.value.trim();
+      if (!raw || /^[0-9]+(\.[0-9]+)?$/.test(raw)) { preview.textContent = ''; preview.classList.remove('show'); return; }
+      const val = evalAmountExpr(raw);
+      if (Number.isFinite(val)) {
+        preview.textContent = '= ' + won(Math.round(val));
+        preview.classList.add('show');
+      } else {
+        preview.textContent = '계산할 수 없는 식이에요';
+        preview.classList.add('show');
+      }
+    };
+    input.addEventListener('input', update);
+    return preview;
+  }
   const esc = s => String(s).replace(/'/g, "''");
   const sqlVal = v => (v === null || v === undefined || v === '') ? 'NULL' : `'${esc(v)}'`;
   const boolVal = v => v === true || v === 't' || v === 'true' || v === 1;
@@ -660,10 +773,20 @@
     { key: 'fixed', type: 'fixed', name: '고정지출', txnType: '지출', isFixed: true },
     { key: 'variable', type: 'variable', name: '변동지출', txnType: '지출', isFixed: false },
   ];
+  // 카드 펼침/접힘 상태를 화면 새로고침(항목 추가·삭제 등)과 무관하게 유지하기 위한 상태값
+  const cardOpenState = {
+    household: { income: true, fixed: false, variable: false },
+    business: { income: true, fixed: false, variable: false },
+  };
   function groupOf(txnType, isFixed) {
     if (txnType === '수입') return GROUPS[0];
     return boolVal(isFixed) ? GROUPS[1] : GROUPS[2];
   }
+
+  // 사업 수입 채널별 수수료율 — 카드 2.2%, 쿠팡/배민 35%. 목록에 없는 채널(현금 등)은 수수료 없음
+  const INCOME_FEE_RATES = { '카드': 0.022, '쿠팡': 0.35, '배민': 0.35 };
+  const netIncomeAmount = item => Math.round(item.amount * (1 - (INCOME_FEE_RATES[item.memo] || 0)));
+  const netIncomeTotal = items => items.reduce((s, it) => s + netIncomeAmount(it), 0);
 
   /* ---------- Supabase connection ---------- */
   const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {};
@@ -710,7 +833,9 @@
 
   /* ---------- 소득/지출 ---------- */
   let ledgerData = null;
+  let prevLedgerTotals = null; // 지난달 총수입/총지출 (전월 대비 증감 표시용)
   let ledgerToken = 0;
+  const domainKey = d => d === '가계' ? 'household' : 'business';
 
   function renderLedgerUnavailable() {
     document.getElementById('ledgerGrid').innerHTML = '<div class="empty-hint">Supabase에 연결되면 항목을 추가할 수 있어요.</div>';
@@ -720,21 +845,41 @@
     const grid = document.getElementById('ledgerGrid');
     if (dbState !== 'ready') { renderLedgerUnavailable(); return; }
     const token = ++ledgerToken;
-    grid.innerHTML = '<div class="empty-hint">불러오는 중…</div>';
+    if (!ledgerData) grid.innerHTML = '<div class="empty-hint">불러오는 중…</div>'; // 첫 로딩 때만 표시 — 새로고침마다 화면을 비우면 스크롤 위치가 맨 위로 튐
     try {
-      const { data: rows, error } = await supabaseClient.from('transactions')
-        .select('id, domain, type, is_fixed, category, amount, memo')
-        .eq('txn_date', monthDateStr(currentOffset))
-        .order('category');
+      const [{ data: rows, error }, { data: prevRows, error: prevError }] = await Promise.all([
+        supabaseClient.from('transactions')
+          .select('id, domain, type, is_fixed, category, amount, memo')
+          .eq('txn_date', monthDateStr(currentOffset))
+          .order('category'),
+        supabaseClient.from('transactions')
+          .select('domain, type, amount, memo')
+          .eq('txn_date', monthDateStr(currentOffset - 1)),
+      ]);
       if (error) throw error;
       if (token !== ledgerToken) return;
       ledgerData = { household: { income: [], fixed: [], variable: [] }, business: { income: [], fixed: [], variable: [] } };
-      const domainKey = d => d === '가계' ? 'household' : 'business';
       rows.forEach(r => {
         const col = ledgerData[domainKey(r.domain)];
         const g = groupOf(r.type, r.is_fixed);
         col[g.key].push({ id: r.id, name: r.category, amount: Number(r.amount), memo: r.memo });
       });
+      if (!prevError && prevRows) {
+        prevLedgerTotals = { household: { income: 0, expense: 0 }, business: { income: 0, expense: 0 } };
+        prevRows.forEach(r => {
+          const key = domainKey(r.domain);
+          const t = prevLedgerTotals[key];
+          if (r.type === '수입') {
+            // 사업 수입은 실수령 금액(수수료 제외) 기준으로 지난달과 비교
+            const rate = (key === 'business') ? (INCOME_FEE_RATES[r.memo] || 0) : 0;
+            t.income += Math.round(Number(r.amount) * (1 - rate));
+          } else {
+            t.expense += Number(r.amount);
+          }
+        });
+      } else {
+        prevLedgerTotals = null; // 지난달 데이터를 못 불러오면 비교 표시는 그냥 생략
+      }
       renderLedger();
     } catch (err) {
       if (token !== ledgerToken) return;
@@ -743,24 +888,43 @@
     }
   }
 
+  // 이번달 값을 지난달과 비교해 증가/감소 표시를 만듦. goodWhenUp: 늘어나는 게 긍정적인 지표인지(수입=true, 지출=false)
+  function renderCompare(current, prev, goodWhenUp) {
+    const diff = current - prev;
+    if (diff === 0) return '<div class="cmp flat">지난달과 동일</div>';
+    const up = diff > 0;
+    const cls = (up === goodWhenUp) ? 'good' : 'bad';
+    return `<div class="cmp ${cls}">${up ? '▲' : '▼'} ${won(Math.abs(diff))} ${up ? '증가' : '감소'}</div>`;
+  }
+
   function buildCategoryGroups(domain, group, items) {
     const names = allCategories
       .filter(row => row.domain === domain && row.type === group.txnType && boolVal(row.is_fixed) === group.isFixed)
-      .map(row => row.name)
-      .sort((a, b) => a.localeCompare(b, 'ko'));
+      .map(row => row.name); // 카테고리 관리에서 지정한 순서(sort_order)를 그대로 따름
     const byName = new Map();
     names.forEach(name => byName.set(name, []));
     items.forEach(it => {
       if (!byName.has(it.name)) byName.set(it.name, []); // 카테고리 관리에서 삭제/변경된 이름도 데이터가 사라지지 않도록 표시
       byName.get(it.name).push(it);
     });
-    return Array.from(byName.entries()).map(([name, list]) => ({ name, items: list, total: sum(list) }));
-  }
-
-  const cardOpenState = {}; // 카드 펼침 상태를 기억해서 등록/삭제 후에도 접히지 않게 함
-  function isCardOpen(colKey, group, idx) {
-    const k = colKey + ':' + group.key;
-    return k in cardOpenState ? cardOpenState[k] : idx === 0;
+    return Array.from(byName.entries()).map(([name, list]) => {
+      // 카테고리 관리에서 등록해둔 "하위 항목"이 있으면, 매달 0원 기본값으로 항상 표시되는 고정 항목으로 분리
+      const templateNames = categoryItems
+        .filter(ci => ci.domain === domain && ci.type === group.txnType && boolVal(ci.is_fixed) === group.isFixed && ci.category === name)
+        .map(ci => ci.name); // 카테고리 관리에서 지정한 순서(sort_order)를 그대로 따름
+      let templateRows = [];
+      let extraItems = list;
+      if (templateNames.length) {
+        const used = new Set();
+        templateRows = templateNames.map(tName => {
+          const matches = list.filter(it => (it.memo || '') === tName);
+          matches.forEach(m => used.add(m.id));
+          return { name: tName, items: matches, total: sum(matches) };
+        });
+        extraItems = list.filter(it => !used.has(it.id));
+      }
+      return { name, items: list, total: sum(list), templateRows, extraItems };
+    });
   }
 
   function renderLedger() {
@@ -768,7 +932,8 @@
     grid.innerHTML = '';
     Object.entries(COLUMNS).forEach(([colKey, col]) => {
       const data = ledgerData[colKey];
-      const totalIncome = sum(data.income);
+      // 사업 총수입은 카드/쿠팡/배민 수수료를 뺀 실수령 금액 기준으로 계산
+      const totalIncome = colKey === 'business' ? netIncomeTotal(data.income) : sum(data.income);
       const totalExpense = sum(data.fixed) + sum(data.variable);
       const net = totalIncome - totalExpense;
 
@@ -780,8 +945,16 @@
           <h2>${col.label}</h2>
         </div>
         <div class="summary-strip">
-          <div class="cell income"><div class="label">총수입</div><div class="val">${won(totalIncome)}</div></div>
-          <div class="cell expense"><div class="label">총지출</div><div class="val">${won(totalExpense)}</div></div>
+          <div class="cell income">
+            <div class="label">총수입</div>
+            <div class="val">${won(totalIncome)}</div>
+            ${prevLedgerTotals ? renderCompare(totalIncome, prevLedgerTotals[colKey].income, true) : ''}
+          </div>
+          <div class="cell expense">
+            <div class="label">총지출</div>
+            <div class="val">${won(totalExpense)}</div>
+            ${prevLedgerTotals ? renderCompare(totalExpense, prevLedgerTotals[colKey].expense, false) : ''}
+          </div>
           <div class="cell"><div class="label">순액</div><div class="val" style="color:var(--accent)">${won(net)}</div></div>
         </div>
         <div class="cards"></div>
@@ -791,11 +964,11 @@
         const items = data[group.key];
         const total = sum(items);
         const catGroups = buildCategoryGroups(col.domain, group, items);
+        const isOpen = cardOpenState[colKey][group.key];
         const card = document.createElement('div');
-        const startOpen = isCardOpen(colKey, group, idx);
-        card.className = `card type-${group.type}` + (startOpen ? ' open' : '');
+        card.className = `card type-${group.type}` + (isOpen ? ' open' : '');
         card.innerHTML = `
-          <button class="card-head" aria-expanded="${startOpen}">
+          <button class="card-head" aria-expanded="${isOpen}">
             <span class="left">
               <span class="dot"></span>
               <span class="name">${group.name}</span>
@@ -820,8 +993,20 @@
                         </button>
                       </span>
                     </div>
-                    ${cg.items.length ? `<div class="cat-txns">
-                      ${cg.items.map(it => `
+                    ${(cg.templateRows.length || cg.extraItems.length) ? `<div class="cat-txns">
+                      ${cg.templateRows.map(tr => `
+                        <div class="row tmpl-row">
+                          <span class="rname">${escapeHtml(tr.name)}</span>
+                          <span class="rright">
+                            <span class="ramt">${signed(tr.total, group.type)}</span>
+                            <button class="edit-bal" type="button">수정</button>
+                            ${tr.items[0] ? `<button class="rdel" type="button" aria-label="삭제" data-id="${tr.items[0].id}">
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                            </button>` : ''}
+                          </span>
+                        </div>
+                      `).join('')}
+                      ${cg.extraItems.map(it => `
                         <div class="row" data-id="${it.id}">
                           <span class="rname">${it.memo ? escapeHtml(it.memo) : '메모 없음'}</span>
                           <span class="rright">
@@ -836,20 +1021,35 @@
                   </div>
                 `).join('')}
               </div>
+              ${(colKey === 'business' && group.key === 'income') ? `
+                <div class="net-income-row">
+                  <span class="label">실수령 금액<small>(카드 2.2%·쿠팡/배민 35% 수수료 제외)</small></span>
+                  <span class="val">${won(Math.round(totalIncome))}</span>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
         const head = card.querySelector('.card-head');
         head.addEventListener('click', () => {
-          const isOpen = card.classList.toggle('open');
-          cardOpenState[colKey + ':' + group.key] = isOpen;
-          head.setAttribute('aria-expanded', String(isOpen));
+          const nowOpen = card.classList.toggle('open');
+          head.setAttribute('aria-expanded', String(nowOpen));
+          cardOpenState[colKey][group.key] = nowOpen;
         });
         card.querySelectorAll('.rdel').forEach(btn => {
           btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTransaction(btn.dataset.id); });
         });
         card.querySelectorAll('.cadd').forEach(btn => {
           btn.addEventListener('click', (e) => { e.stopPropagation(); openCategoryEntryForm(btn, colKey, group, btn.dataset.category); });
+        });
+        // .tmpl-row는 catGroups 순서대로 렌더링되므로, 같은 순서로 만든 목록과 그대로 짝지어 이벤트를 건다
+        const flatTemplateRows = catGroups.flatMap(cg => cg.templateRows.map(tr => ({ categoryName: cg.name, tr })));
+        card.querySelectorAll('.tmpl-row .edit-bal').forEach((btn, i) => {
+          const { categoryName, tr } = flatTemplateRows[i];
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openTemplateItemEditor(btn, colKey, group, categoryName, tr.name, tr.items[0]);
+          });
         });
         cardsRoot.appendChild(card);
       });
@@ -864,20 +1064,22 @@
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <input class="f-amt" type="number" placeholder="금액" min="0" step="1">
       <input class="f-memo" type="text" placeholder="메모 (선택)" maxlength="80">
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="금액 (예: 5000+3200)">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
       </div>
     `;
     catLine.appendChild(form);
-    form.querySelector('.f-amt').focus();
+    const amtInput = form.querySelector('.f-amt');
+    const memoInput = form.querySelector('.f-memo');
+    attachAmountCalculator(amtInput);
+    memoInput.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
     const submit = async () => {
-      if (form.querySelector('.save').disabled) return;
-      const amt = Number(form.querySelector('.f-amt').value);
-      const memo = form.querySelector('.f-memo').value.trim();
+      const amt = evalAmountExpr(amtInput.value);
+      const memo = memoInput.value.trim();
       const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
       if (!(amt > 0)) {
         const e = document.createElement('div'); e.className = 'f-error';
@@ -896,9 +1098,52 @@
       }
     };
     form.querySelector('.save').addEventListener('click', submit);
-    form.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); } });
-    });
+    memoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    amtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  function openTemplateItemEditor(btn, colKey, group, categoryName, itemName, existingTxn) {
+    const row = btn.closest('.row');
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('entry-form')) { row.nextElementSibling.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="금액 (예: 5000+3200)" value="${existingTxn ? existingTxn.amount : ''}">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">저장</button>
+      </div>
+    `;
+    row.after(form);
+    const input = form.querySelector('.f-amt');
+    attachAmountCalculator(input);
+    input.focus();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const amt = evalAmountExpr(input.value);
+      if (!(amt >= 0)) return;
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        if (existingTxn) {
+          await updateTransactionAmount(existingTxn.id, amt);
+        } else {
+          await addTransaction(colKey, group, categoryName, amt, itemName);
+        }
+        form.remove();
+        await loadLedger();
+      } catch (err) {
+        saveBtn.disabled = false;
+        showBanner((err && err.code) || 'upstream_error', err && (err.message || err.server));
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  async function updateTransactionAmount(id, amount) {
+    const { error } = await supabaseClient.from('transactions').update({ amount }).eq('id', id);
+    if (error) throw error;
   }
 
   async function addTransaction(colKey, group, name, amount, memo) {
@@ -922,20 +1167,38 @@
 
   /* ---------- 카테고리 관리 ---------- */
   let allCategories = [];
+  let categoryItems = [];
+  const openCategoryItemPanels = new Set(); // 하위 항목 펼침 상태 유지용
+  const itemPanelKey = (domain, group, category) => `${domain}|${group.txnType}|${group.isFixed}|${category}`;
 
   async function loadCategories() {
     const root = document.getElementById('categoriesRoot');
     if (dbState !== 'ready') { root.innerHTML = '<div class="empty-hint">Supabase에 연결되면 카테고리를 관리할 수 있어요.</div>'; return; }
     try {
       const { data, error } = await supabaseClient.from('categories')
-        .select('id, domain, type, is_fixed, name')
-        .order('domain').order('type').order('is_fixed').order('name');
+        .select('id, domain, type, is_fixed, name, sort_order')
+        .order('domain').order('type').order('is_fixed').order('sort_order').order('name');
       if (error) throw error;
       allCategories = data || [];
       renderCategories();
       if (ledgerData) renderLedger(); // 소득/지출 목록도 최신 카테고리 기준으로 다시 그림
     } catch (err) {
       root.innerHTML = '';
+      const info = dbError(err); showBanner(info.code, info.detail);
+    }
+  }
+
+  async function loadCategoryItems() {
+    if (dbState !== 'ready') return;
+    try {
+      const { data, error } = await supabaseClient.from('category_items')
+        .select('id, domain, type, is_fixed, category, name, sort_order')
+        .order('domain').order('type').order('is_fixed').order('category').order('sort_order').order('name');
+      if (error) throw error;
+      categoryItems = data || [];
+      renderCategories();
+      if (ledgerData) renderLedger(); // 소득/지출의 고정 하위 항목도 최신 목록으로 다시 그림
+    } catch (err) {
       const info = dbError(err); showBanner(info.code, info.detail);
     }
   }
@@ -956,25 +1219,170 @@
             <span class="name"><span class="dot" style="background:var(--${group.type === 'income' ? 'income' : group.type === 'fixed' ? 'exp-fixed' : 'exp-var'})"></span>${group.name}</span>
             <span class="count">${rows.length}개 카테고리</span>
           </div>
-          <div class="chips">
-            ${rows.map(r => `<span class="chip">${escapeHtml(r.name)}<button class="chip-del" type="button" data-id="${r.id}" aria-label="삭제">×</button></span>`).join('')}
-            <button class="chip add" type="button">+ 카테고리 추가</button>
+          <div class="cat-item-list">
+            ${rows.map(r => {
+              const subItems = categoryItems
+                .filter(ci => ci.domain === col.domain && ci.type === group.txnType && boolVal(ci.is_fixed) === group.isFixed && ci.category === r.name);
+              const isOpen = openCategoryItemPanels.has(itemPanelKey(col.domain, group, r.name));
+              return `
+                <div class="cat-item-row" data-cat-id="${r.id}">
+                  <div class="cat-item-head">
+                    <span class="drag-handle" draggable="true" aria-hidden="true" title="드래그해서 순서 변경">⠿</span>
+                    <button class="cat-item-toggle" type="button" aria-expanded="${isOpen}">
+                      <svg class="chevron-sm" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
+                      <span class="cname">${escapeHtml(r.name)}</span>
+                      <span class="isub-count">${subItems.length ? subItems.length + '개 하위 항목' : '하위 항목 없음'}</span>
+                    </button>
+                    <button class="chip-del" type="button" data-id="${r.id}" aria-label="카테고리 삭제">×</button>
+                  </div>
+                  <div class="cat-item-sub" ${isOpen ? '' : 'hidden'}>
+                    <div class="subitem-list">
+                      ${subItems.map(it => `
+                        <div class="subitem-row" data-item-id="${it.id}">
+                          <span class="drag-handle sm" draggable="true" aria-hidden="true" title="드래그해서 순서 변경">⠿</span>
+                          <span class="subitem-name">${escapeHtml(it.name)}</span>
+                          <button class="subitem-edit" type="button" data-item-id="${it.id}" aria-label="이름 수정">✎</button>
+                          <button class="chip-del" type="button" data-item-id="${it.id}" aria-label="삭제">×</button>
+                        </div>
+                      `).join('')}
+                    </div>
+                    <button class="chip add" type="button" data-add-item="${escapeHtml(r.name)}">+ 하위 항목 추가</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
+          <button class="chip add cat-add-btn" type="button">+ 카테고리 추가</button>
         `;
-        block.querySelectorAll('.chip-del').forEach(btn => {
+        block.querySelectorAll('.cat-item-head > .chip-del').forEach(btn => {
           btn.addEventListener('click', () => deleteCategory(btn.dataset.id));
         });
-        block.querySelector('.chip.add').addEventListener('click', (e) => openCategoryForm(e.currentTarget, col.domain, group));
+        block.querySelectorAll('.cat-item-sub .chip-del').forEach(btn => {
+          btn.addEventListener('click', () => deleteCategoryItem(btn.dataset.itemId));
+        });
+        block.querySelectorAll('.subitem-edit').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.stopPropagation(); openSubItemRenameForm(e.currentTarget); });
+        });
+        block.querySelectorAll('.cat-item-row').forEach(rowEl => {
+          const toggle = rowEl.querySelector('.cat-item-toggle');
+          const sub = rowEl.querySelector('.cat-item-sub');
+          const categoryName = toggle.querySelector('.cname').textContent;
+          toggle.addEventListener('click', () => {
+            const willOpen = sub.hidden;
+            sub.hidden = !willOpen;
+            toggle.setAttribute('aria-expanded', String(willOpen));
+            const key = itemPanelKey(col.domain, group, categoryName);
+            if (willOpen) openCategoryItemPanels.add(key); else openCategoryItemPanels.delete(key);
+          });
+          attachSubItemDragHandlers(rowEl.querySelector('.subitem-list'), col.domain, group, categoryName);
+        });
+        block.querySelectorAll('[data-add-item]').forEach(btn => {
+          btn.addEventListener('click', (e) => openCategoryItemForm(e.currentTarget, col.domain, group, btn.dataset.addItem));
+        });
+        block.querySelector('.cat-add-btn').addEventListener('click', (e) => openCategoryForm(e.currentTarget, col.domain, group));
+        attachCategoryDragHandlers(block.querySelector('.cat-item-list'), col.domain, group);
         wrap.appendChild(block);
       });
       root.appendChild(wrap);
     });
   }
 
-  function openCategoryForm(addChip, domain, group) {
-    const chips = addChip.closest('.chips');
-    const existing = chips.querySelector('.entry-form');
-    if (existing) { existing.remove(); return; }
+  function attachCategoryDragHandlers(listEl, domain, group) {
+    if (!listEl) return;
+    listEl.querySelectorAll('.cat-item-row').forEach(rowEl => {
+      const handle = rowEl.querySelector('.drag-handle');
+      handle.addEventListener('dragstart', (e) => {
+        rowEl.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', rowEl.dataset.catId); // 일부 브라우저는 data 없이는 드래그를 시작하지 않음
+      });
+      handle.addEventListener('dragend', () => {
+        rowEl.classList.remove('dragging');
+        persistCategoryOrder(listEl, domain, group);
+      });
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const dragging = listEl.querySelector('.cat-item-row.dragging');
+      if (!dragging) return;
+      e.preventDefault();
+      const target = e.target.closest('.cat-item-row');
+      if (!target || target === dragging) return;
+      const rect = target.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.insertBefore(dragging, before ? target : target.nextSibling);
+    });
+  }
+
+  async function persistCategoryOrder(listEl, domain, group) {
+    const ids = Array.from(listEl.querySelectorAll('.cat-item-row')).map(el => el.dataset.catId);
+    const changed = [];
+    ids.forEach((id, i) => {
+      const newOrder = (i + 1) * 10;
+      const cat = allCategories.find(c => c.id === id);
+      if (cat && cat.sort_order !== newOrder) { cat.sort_order = newOrder; changed.push({ id, sort_order: newOrder }); }
+    });
+    if (!changed.length) return;
+    allCategories.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    if (ledgerData) renderLedger(); // 소득/지출 쪽도 바뀐 순서로 반영
+    try {
+      await Promise.all(changed.map(c => supabaseClient.from('categories').update({ sort_order: c.sort_order }).eq('id', c.id)));
+    } catch (err) {
+      const info = dbError(err); showBanner(info.code, info.detail);
+      await loadCategories(); // 저장 실패 시 서버 상태로 되돌림
+    }
+  }
+
+  function attachSubItemDragHandlers(listEl, domain, group, category) {
+    if (!listEl) return;
+    listEl.querySelectorAll('.subitem-row').forEach(rowEl => {
+      const handle = rowEl.querySelector('.drag-handle');
+      handle.addEventListener('dragstart', (e) => {
+        rowEl.classList.add('dragging');
+        e.stopPropagation(); // 상위 카테고리 드래그와 겹치지 않도록
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', rowEl.dataset.itemId);
+      });
+      handle.addEventListener('dragend', (e) => {
+        e.stopPropagation();
+        rowEl.classList.remove('dragging');
+        persistSubItemOrder(listEl, domain, group, category);
+      });
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const dragging = listEl.querySelector('.subitem-row.dragging');
+      if (!dragging) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const target = e.target.closest('.subitem-row');
+      if (!target || target === dragging || target.parentElement !== listEl) return;
+      const rect = target.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.insertBefore(dragging, before ? target : target.nextSibling);
+    });
+  }
+
+  async function persistSubItemOrder(listEl, domain, group, category) {
+    const ids = Array.from(listEl.querySelectorAll('.subitem-row')).map(el => el.dataset.itemId);
+    const changed = [];
+    ids.forEach((id, i) => {
+      const newOrder = (i + 1) * 10;
+      const item = categoryItems.find(ci => ci.id === id);
+      if (item && item.sort_order !== newOrder) { item.sort_order = newOrder; changed.push({ id, sort_order: newOrder }); }
+    });
+    if (!changed.length) return;
+    categoryItems.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    if (ledgerData) renderLedger(); // 소득/지출의 하위 항목 순서도 함께 반영
+    try {
+      await Promise.all(changed.map(c => supabaseClient.from('category_items').update({ sort_order: c.sort_order }).eq('id', c.id)));
+    } catch (err) {
+      const info = dbError(err); showBanner(info.code, info.detail);
+      await loadCategoryItems(); // 저장 실패 시 서버 상태로 되돌림
+    }
+  }
+
+  function openCategoryForm(addBtn, domain, group) {
+    const existing = addBtn.nextElementSibling;
+    if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
@@ -984,7 +1392,7 @@
         <button class="save" type="button">추가</button>
       </div>
     `;
-    chips.appendChild(form);
+    addBtn.after(form);
     const input = form.querySelector('.f-cat');
     input.focus();
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
@@ -1008,12 +1416,14 @@
       }
     };
     form.querySelector('.save').addEventListener('click', submit);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) submit(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   async function addCategory(domain, group, name) {
+    const existing = allCategories.filter(r => r.domain === domain && r.type === group.txnType && boolVal(r.is_fixed) === group.isFixed);
+    const nextOrder = existing.length ? Math.max(...existing.map(r => r.sort_order || 0)) + 10 : 10; // 새 카테고리는 항상 맨 뒤에 추가
     const { error } = await supabaseClient.from('categories').upsert({
-      domain, type: group.txnType, is_fixed: group.isFixed, name
+      domain, type: group.txnType, is_fixed: group.isFixed, name, sort_order: nextOrder
     }, { onConflict: 'domain,type,is_fixed,name', ignoreDuplicates: true });
     if (error) throw error;
   }
@@ -1026,6 +1436,122 @@
     } catch (err) {
       const info = dbError(err); showBanner(info.code, info.detail);
     }
+  }
+
+  function openCategoryItemForm(addBtn, domain, group, categoryName) {
+    const existing = addBtn.nextElementSibling;
+    if (existing && existing.classList.contains('entry-form')) { existing.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-cat" type="text" placeholder="하위 항목명 (예: 주담대1)" maxlength="40">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">추가</button>
+      </div>
+    `;
+    addBtn.after(form);
+    const input = form.querySelector('.f-cat');
+    input.focus();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const name = input.value.trim();
+      const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
+      if (!name) {
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = '항목명을 입력해주세요.'; form.appendChild(e); return;
+      }
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        await addCategoryItem(domain, group, categoryName, name);
+        form.remove();
+        openCategoryItemPanels.add(itemPanelKey(domain, group, categoryName)); // 추가 직후 펼친 상태 유지
+        await loadCategoryItems();
+      } catch (err) {
+        saveBtn.disabled = false;
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  async function addCategoryItem(domain, group, category, name) {
+    const existing = categoryItems.filter(ci => ci.domain === domain && ci.type === group.txnType && boolVal(ci.is_fixed) === group.isFixed && ci.category === category);
+    const nextOrder = existing.length ? Math.max(...existing.map(ci => ci.sort_order || 0)) + 10 : 10;
+    const { error } = await supabaseClient.from('category_items').upsert({
+      domain, type: group.txnType, is_fixed: group.isFixed, category, name, sort_order: nextOrder
+    }, { onConflict: 'domain,type,is_fixed,category,name', ignoreDuplicates: true });
+    if (error) throw error;
+  }
+
+  async function deleteCategoryItem(id) {
+    try {
+      const { error } = await supabaseClient.from('category_items').delete().eq('id', id);
+      if (error) throw error;
+      await loadCategoryItems();
+    } catch (err) {
+      const info = dbError(err); showBanner(info.code, info.detail);
+    }
+  }
+
+  function openSubItemRenameForm(btn) {
+    const id = btn.dataset.itemId;
+    const item = categoryItems.find(ci => ci.id === id);
+    if (!item) return;
+    const row = btn.closest('.subitem-row');
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('entry-form')) { row.nextElementSibling.remove(); return; }
+    const form = document.createElement('div');
+    form.className = 'entry-form';
+    form.innerHTML = `
+      <input class="f-cat" type="text" maxlength="40" value="${escapeHtml(item.name)}">
+      <div class="f-actions">
+        <button class="cancel" type="button">취소</button>
+        <button class="save" type="button">저장</button>
+      </div>
+    `;
+    row.after(form);
+    const input = form.querySelector('.f-cat');
+    input.focus();
+    input.select();
+    form.querySelector('.cancel').addEventListener('click', () => form.remove());
+    const submit = async () => {
+      const name = input.value.trim();
+      const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
+      if (!name) {
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = '이름을 입력해주세요.'; form.appendChild(e); return;
+      }
+      if (name === item.name) { form.remove(); return; }
+      const saveBtn = form.querySelector('.save');
+      saveBtn.disabled = true;
+      try {
+        await renameCategoryItem(item, name);
+        form.remove();
+        await loadCategoryItems();
+        await loadLedger(); // 과거 거래 메모도 함께 바뀌므로 소득/지출도 새로고침
+      } catch (err) {
+        saveBtn.disabled = false;
+        const e = document.createElement('div'); e.className = 'f-error';
+        e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
+      }
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  async function renameCategoryItem(item, newName) {
+    const { error } = await supabaseClient.from('category_items')
+      .update({ name: newName }).eq('id', item.id);
+    if (error) throw error;
+    // 지난달들의 거래 메모도 새 이름으로 맞춰줘야 이전 데이터가 새 이름 아래로 계속 이어져 보임
+    const { error: txnError } = await supabaseClient.from('transactions')
+      .update({ memo: newName })
+      .eq('domain', item.domain).eq('type', item.type).eq('is_fixed', item.is_fixed)
+      .eq('category', item.category).eq('memo', item.name);
+    if (txnError) throw txnError;
   }
 
   /* ---------- 자산현황 ---------- */
@@ -1119,7 +1645,7 @@
     const form = document.createElement('div');
     form.className = 'entry-form';
     form.innerHTML = `
-      <input class="f-amt" type="number" placeholder="이번 달 잔액" min="0" step="1" value="${current && current.balance !== null ? current.balance : ''}">
+      <input class="f-amt" type="text" inputmode="decimal" placeholder="이번 달 잔액" value="${current && current.balance !== null ? current.balance : ''}">
       <div class="f-actions">
         <button class="cancel" type="button">취소</button>
         <button class="save" type="button">저장</button>
@@ -1127,11 +1653,11 @@
     `;
     row.after(form);
     const input = form.querySelector('.f-amt');
+    attachAmountCalculator(input);
     input.focus();
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); form.querySelector('.save').click(); } });
     form.querySelector('.cancel').addEventListener('click', () => form.remove());
-    form.querySelector('.save').addEventListener('click', async () => {
-      const val = Number(input.value);
+    const submit = async () => {
+      const val = evalAmountExpr(input.value);
       if (!(val >= 0)) return;
       const saveBtn = form.querySelector('.save');
       saveBtn.disabled = true;
@@ -1143,7 +1669,9 @@
         saveBtn.disabled = false;
         showBanner((err && err.code) || 'upstream_error', err && (err.message || err.server));
       }
-    });
+    };
+    form.querySelector('.save').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   async function setAccountBalance(accountId, balance) {
@@ -1253,7 +1781,7 @@
       }
     };
     form.querySelector('.save').addEventListener('click', submit);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) submit(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   }
 
   function setupAccountForm() {
@@ -1269,22 +1797,22 @@
           <option value="투자">투자</option>
           <option value="부채">부채</option>
         </select>
-        <input class="f-bal" type="number" placeholder="이번 달 잔액" min="0" step="1">
+        <input class="f-bal" type="text" inputmode="decimal" placeholder="이번 달 잔액">
         <div class="f-actions">
           <button class="cancel" type="button">취소</button>
           <button class="save" type="button">저장</button>
         </div>
       `;
       root.appendChild(form);
-      form.querySelector('.f-name').focus();
-      form.querySelectorAll('input').forEach(inp => {
-        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); form.querySelector('.save').click(); } });
-      });
+      const nameInput = form.querySelector('.f-name');
+      const balInput = form.querySelector('.f-bal');
+      attachAmountCalculator(balInput);
+      nameInput.focus();
       form.querySelector('.cancel').addEventListener('click', () => { root.innerHTML = ''; });
-      form.querySelector('.save').addEventListener('click', async () => {
-        const name = form.querySelector('.f-name').value.trim();
+      const submit = async () => {
+        const name = nameInput.value.trim();
         const type = form.querySelector('.f-type').value;
-        const bal = Number(form.querySelector('.f-bal').value);
+        const bal = evalAmountExpr(balInput.value);
         const oldErr = form.querySelector('.f-error'); if (oldErr) oldErr.remove();
         if (!name || !(bal >= 0)) {
           const e = document.createElement('div'); e.className = 'f-error';
@@ -1301,7 +1829,10 @@
           const e = document.createElement('div'); e.className = 'f-error';
           e.textContent = bannerInfo((err && err.code) || 'upstream_error').text; form.appendChild(e);
         }
-      });
+      };
+      form.querySelector('.save').addEventListener('click', submit);
+      nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+      balInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
     });
   }
 
@@ -1356,7 +1887,7 @@
     renderMonthSwitch();
     const ok = await connectDb();
     if (ok) {
-      await Promise.all([loadLedger(), loadAssets(), loadCategories()]);
+      await Promise.all([loadLedger(), loadAssets(), loadCategories(), loadCategoryItems()]);
     } else {
       renderLedgerUnavailable();
       document.getElementById('assetStats').innerHTML = '';
