@@ -348,11 +348,12 @@
   /* ---------- 자산현황 ---------- */
   .stat-row{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(4,1fr);
     gap:16px;
     margin-bottom:28px;
   }
-  @media (max-width:700px){ .stat-row{ grid-template-columns:1fr; } }
+  @media (max-width:900px){ .stat-row{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:520px){ .stat-row{ grid-template-columns:1fr; } }
   .stat-card{
     background:var(--paper-raised);
     border:1px solid var(--line);
@@ -370,16 +371,17 @@
     margin-top:8px;
     font-variant-numeric:tabular-nums;
   }
-  .stat-card.assets .amt{ color:var(--income); }
+  .stat-card.cash .amt{ color:var(--income); }
+  .stat-card.invest .amt{ color:var(--exp-var); }
   .stat-card.debt .amt{ color:var(--exp-fixed); }
   .stat-card.net .amt{ color:var(--accent); }
 
   .breakdown-grid{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:repeat(3,1fr);
     gap:24px;
   }
-  @media (max-width:700px){ .breakdown-grid{ grid-template-columns:1fr; } }
+  @media (max-width:900px){ .breakdown-grid{ grid-template-columns:1fr; } }
   .breakdown h3{
     font-family:var(--font-display);
     font-size:1.05rem;
@@ -988,15 +990,18 @@
   }
 
   function renderAssets() {
-    const assets = accountsData.filter(a => a.account_type === '자산');
+    const cashList = accountsData.filter(a => a.account_type === '현금');
+    const investList = accountsData.filter(a => a.account_type === '투자');
     const debts = accountsData.filter(a => a.account_type === '부채');
-    const totalAssets = sum(assets.map(a => ({ amount: a.balance || 0 })));
+    const totalCash = sum(cashList.map(a => ({ amount: a.balance || 0 })));
+    const totalInvest = sum(investList.map(a => ({ amount: a.balance || 0 })));
     const totalDebts = sum(debts.map(a => ({ amount: a.balance || 0 })));
-    const net = totalAssets - totalDebts;
+    const net = totalCash + totalInvest - totalDebts;
 
     document.getElementById('assetStats').innerHTML = accountsData.length ? `
-      <div class="stat-card assets"><div class="label">총자산</div><div class="amt">${won(totalAssets)}</div></div>
-      <div class="stat-card debt"><div class="label">총부채</div><div class="amt">${won(totalDebts)}</div></div>
+      <div class="stat-card cash"><div class="label">현금</div><div class="amt">${won(totalCash)}</div></div>
+      <div class="stat-card invest"><div class="label">투자</div><div class="amt">${won(totalInvest)}</div></div>
+      <div class="stat-card debt"><div class="label">부채</div><div class="amt">${won(totalDebts)}</div></div>
       <div class="stat-card net"><div class="label">순자산</div><div class="amt">${won(net)}</div></div>
     ` : '';
 
@@ -1015,8 +1020,12 @@
 
     document.getElementById('assetBreakdown').innerHTML = `
       <div class="breakdown">
-        <h3>자산</h3>
-        <div class="plain-list">${renderGroup(assets)}</div>
+        <h3>현금</h3>
+        <div class="plain-list">${renderGroup(cashList)}</div>
+      </div>
+      <div class="breakdown">
+        <h3>투자</h3>
+        <div class="plain-list">${renderGroup(investList)}</div>
       </div>
       <div class="breakdown">
         <h3>부채</h3>
@@ -1107,7 +1116,8 @@
     const root = document.getElementById('accountCategoriesRoot');
     if (!root) return;
     const groups = [
-      { key: '자산', label: '자산', dotVar: '--income' },
+      { key: '현금', label: '현금', dotVar: '--income' },
+      { key: '투자', label: '투자', dotVar: '--exp-var' },
       { key: '부채', label: '부채', dotVar: '--exp-fixed' },
     ];
     root.innerHTML = groups.map(g => {
@@ -1183,7 +1193,8 @@
       form.innerHTML = `
         <input class="f-name" type="text" placeholder="계좌/자산 이름 (예: 예금)" maxlength="40">
         <select class="f-type">
-          <option value="자산">자산</option>
+          <option value="현금">현금</option>
+          <option value="투자">투자</option>
           <option value="부채">부채</option>
         </select>
         <input class="f-bal" type="number" placeholder="이번 달 잔액" min="0" step="1">
