@@ -267,6 +267,13 @@
   .summary-strip .cmp.good{ color:var(--income); }
   .summary-strip .cmp.bad{ color:var(--exp-fixed); }
   .summary-strip .cmp.flat{ color:var(--ink-faint); font-weight:500; }
+  .stat-card .cmp{
+    font-size:.74rem; font-weight:600; margin-top:6px;
+    font-variant-numeric:tabular-nums; word-break:keep-all;
+  }
+  .stat-card .cmp.good{ color:var(--income); }
+  .stat-card .cmp.bad{ color:var(--exp-fixed); }
+  .stat-card .cmp.flat{ color:var(--ink-faint); font-weight:500; }
 
   .cards{ display:flex; flex-direction:column; gap:14px; }
 
@@ -1558,6 +1565,8 @@
   let accountsData = [];
   let assetsToken = 0;
 
+  let prevAssetBalances = null; // 지난달 계좌별 잔액 (전월 대비 증감 표시용)
+
   async function loadAssets() {
     const breakdownEl = document.getElementById('assetBreakdown');
     if (dbState !== 'ready') {
@@ -1574,10 +1583,18 @@
       const { data: snapshots, error: snapshotsError } = await supabaseClient.from('account_snapshots')
         .select('account_id, balance').eq('snapshot_month', monthDateStr(currentOffset));
       if (snapshotsError) throw snapshotsError;
+      // 전월 잔액 (증감 비교용). 못 불러오거나 전월 기록이 없으면 비교 표시는 생략
+      let prevBalances = null;
+      if (currentOffset > MIN_OFFSET) {
+        const { data: prevSnaps, error: prevSnapsError } = await supabaseClient.from('account_snapshots')
+          .select('account_id, balance').eq('snapshot_month', monthDateStr(currentOffset - 1));
+        if (!prevSnapsError && prevSnaps && prevSnaps.length) prevBalances = new Map(prevSnaps.map(row => [row.account_id, Number(row.balance)]));
+      }
       const balances = new Map((snapshots || []).map(row => [row.account_id, row.balance]));
       const rows = (accounts || []).map(account => ({ ...account, balance: balances.has(account.id) ? balances.get(account.id) : null }));
       if (token !== assetsToken) return;
       accountsData = rows.map(r => ({ id: r.id, name: r.name, account_type: r.account_type, balance: r.balance === null ? null : Number(r.balance) }));
+      prevAssetBalances = prevBalances;
       renderAssets();
     } catch (err) {
       if (token !== assetsToken) return;
@@ -1595,11 +1612,20 @@
     const totalDebts = sum(debts.map(a => ({ amount: a.balance || 0 })));
     const net = totalCash + totalInvest - totalDebts;
 
+    // 지난달 합계 (전월 기록이 있을 때만 비교 표시)
+    let cmp = () => '';
+    if (prevAssetBalances) {
+      const prevSum = (list) => list.reduce((acc, a) => acc + (prevAssetBalances.get(a.id) || 0), 0);
+      const pc = prevSum(cashList), pi = prevSum(investList), pd = prevSum(debts);
+      const prev = { cash: pc, invest: pi, debt: pd, net: pc + pi - pd };
+      cmp = (key, current, goodWhenUp) => renderCompare(current, prev[key], goodWhenUp);
+    }
+
     document.getElementById('assetStats').innerHTML = accountsData.length ? `
-      <div class="stat-card cash"><div class="label">현금</div><div class="amt">${won(totalCash)}</div></div>
-      <div class="stat-card invest"><div class="label">투자</div><div class="amt">${won(totalInvest)}</div></div>
-      <div class="stat-card debt"><div class="label">부채</div><div class="amt">${won(totalDebts)}</div></div>
-      <div class="stat-card net"><div class="label">순자산</div><div class="amt">${won(net)}</div></div>
+      <div class="stat-card cash"><div class="label">현금</div><div class="amt">${won(totalCash)}</div>${cmp('cash', totalCash, true)}</div>
+      <div class="stat-card invest"><div class="label">투자</div><div class="amt">${won(totalInvest)}</div>${cmp('invest', totalInvest, true)}</div>
+      <div class="stat-card debt"><div class="label">부채</div><div class="amt">${won(totalDebts)}</div>${cmp('debt', totalDebts, false)}</div>
+      <div class="stat-card net"><div class="label">순자산</div><div class="amt">${won(net)}</div>${cmp('net', net, true)}</div>
     ` : '';
 
     const renderGroup = (list) => list.length ? list.map(a => `
