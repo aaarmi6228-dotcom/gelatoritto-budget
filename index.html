@@ -797,7 +797,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase-config.js"></script>
 <script>
-  const won = n => n.toLocaleString('ko-KR') + '원';
+  const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
   const signed = (n, type) => (type === 'income' ? '+' : '−') + won(Math.abs(n));
   const sum = items => items.reduce((a, b) => a + b.amount, 0);
 
@@ -809,7 +809,7 @@
     if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return NaN; // 숫자/사칙연산/괄호 외에는 거부
     try {
       const val = Function('"use strict"; return (' + cleaned + ')')();
-      return (typeof val === 'number' && isFinite(val)) ? val : NaN;
+      return (typeof val === 'number' && isFinite(val)) ? Math.round(val) : NaN; // 소수점은 반올림
     } catch (e) {
       return NaN;
     }
@@ -1987,7 +1987,7 @@
         const g = groupOf(r.type, r.is_fixed).key;
         const month = Number(String(r.txn_date).slice(5, 7)) - 1;
         if (!agg[g].has(r.category)) agg[g].set(r.category, Array(12).fill(0));
-        agg[g].get(r.category)[month] += Number(r.amount) || 0;
+        agg[g].get(r.category)[month] += Math.round(Number(r.amount) || 0);
       });
       yearlyData = agg;
       renderYearly();
