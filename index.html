@@ -564,6 +564,69 @@
     margin:-6px 0 18px;
   }
 
+  /* ---------- 연간 현황 ---------- */
+  .year-controls{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    gap:14px; padding:22px 0 18px;
+  }
+  .year-switch{ display:flex; align-items:center; gap:12px; }
+  .year-switch .nav-btn{
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--line); background:var(--paper-raised);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--ink-soft); flex:none;
+  }
+  .year-switch .nav-btn svg{ width:16px; height:16px; }
+  .year-switch .nav-btn:hover:not(:disabled){ background:var(--accent-soft); color:var(--ink); }
+  .year-switch .nav-btn:disabled{ opacity:.32; cursor:not-allowed; }
+  .year-switch .label{
+    font-family:var(--font-display); font-weight:700; font-size:1.2rem;
+    min-width:84px; text-align:center; font-variant-numeric:tabular-nums;
+  }
+  .seg{ display:inline-flex; border:1px solid var(--line-strong); border-radius:999px; overflow:hidden; background:var(--paper-raised); }
+  .seg button{
+    font-family:var(--font-body); font-size:.85rem; font-weight:600;
+    padding:7px 20px; border:none; background:none; color:var(--ink-faint); cursor:pointer;
+  }
+  .seg button[aria-pressed="true"]{ background:var(--accent); color:#fff; }
+  .year-unit{ font-size:.75rem; color:var(--ink-faint); margin:0 0 8px; text-align:right; }
+  .year-table-wrap{
+    overflow-x:auto; background:var(--paper-raised);
+    border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  }
+  table.year-table{ border-collapse:separate; border-spacing:0; width:100%; min-width:1140px; table-layout:fixed; font-size:.8rem; }
+  .year-table col.c-name{ width:150px; }
+  .year-table col.c-total{ width:104px; }
+  .year-table th, .year-table td{
+    padding:9px 8px; text-align:right; white-space:nowrap;
+    border-bottom:1px solid var(--line);
+    font-variant-numeric:tabular-nums;
+  }
+  .year-table td{ font-family:var(--font-mono); color:var(--ink); }
+  .year-table td.zero{ color:var(--ink-faint); }
+  .year-table thead th{
+    position:sticky; top:0; background:var(--paper-sunken);
+    font-weight:700; color:var(--ink-soft); font-size:.78rem;
+  }
+  .year-table th:first-child, .year-table td:first-child{
+    position:sticky; left:0; text-align:left; background:var(--paper-raised);
+    font-family:var(--font-body); min-width:120px; z-index:1;
+  }
+  .year-table thead th:first-child{ background:var(--paper-sunken); z-index:2; }
+  .year-table th.total, .year-table td.total{ font-weight:700; border-left:1px solid var(--line); background:var(--paper-sunken); }
+  .year-table tr.group-head td{
+    background:var(--paper-sunken); font-family:var(--font-body); font-weight:700; text-align:left; color:var(--ink);
+  }
+  .year-table tr.group-head td .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+  .year-table tr.sub td{ font-weight:700; background:var(--paper-sunken); }
+  .year-table tr.sub td:first-child{ background:var(--paper-sunken); }
+  .year-table tr.grand td{ font-weight:800; border-top:2px solid var(--line-strong); }
+  .year-table tr.grand.income td:not(:first-child){ color:var(--income); }
+  .year-table tr.grand.expense td:not(:first-child){ color:var(--exp-fixed); }
+  .year-table tr.grand.net td:not(:first-child){ color:var(--accent); }
+  .year-table tbody tr:hover td{ background:var(--accent-soft); }
+  .year-table tbody tr.group-head:hover td, .year-table tbody tr.sub:hover td{ background:var(--paper-sunken); }
+
   /* ---------- db banner ---------- */
   .db-banner{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -672,6 +735,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-target="page-flow">소득/지출</button>
     <button role="tab" aria-selected="false" data-target="page-assets">자산현황</button>
+    <button role="tab" aria-selected="false" data-target="page-yearly">연간 현황</button>
     <button role="tab" aria-selected="false" data-target="page-categories">카테고리 관리</button>
   </nav>
 
@@ -698,6 +762,26 @@
       <div id="accountFormRoot"></div>
       <div class="stat-row" id="assetStats"></div>
       <div class="breakdown-grid" id="assetBreakdown"></div>
+    </section>
+
+    <section class="page" id="page-yearly">
+      <div class="year-controls">
+        <div class="year-switch">
+          <button class="nav-btn" id="prevYear" type="button" aria-label="이전 해">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 5l-5 5 5 5"/></svg>
+          </button>
+          <span class="label" id="yearLabel"></span>
+          <button class="nav-btn" id="nextYear" type="button" aria-label="다음 해">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 5l5 5-5 5"/></svg>
+          </button>
+        </div>
+        <div class="seg" id="yearDomainSeg">
+          <button type="button" data-domain="가계" aria-pressed="true">가계</button>
+          <button type="button" data-domain="사업" aria-pressed="false">사업</button>
+        </div>
+      </div>
+      <div class="year-unit">단위: 원</div>
+      <div id="yearlyRoot"></div>
     </section>
 
     <section class="page" id="page-categories">
@@ -1862,6 +1946,100 @@
     });
   }
 
+  /* ---------- 연간 현황 ---------- */
+  let yearlyYear = monthAt(0).year;
+  let yearlyDomain = '가계';
+  let yearlyData = null; // 가져온 거래 합계: { 'group.key': { 카테고리명: [12개월 합계] } }
+  let yearlyToken = 0;
+  const YEAR_MIN = monthAt(MIN_OFFSET).year, YEAR_MAX = monthAt(MAX_OFFSET).year;
+
+  function renderYearSwitch() {
+    document.getElementById('yearLabel').textContent = yearlyYear + '년';
+    document.getElementById('prevYear').disabled = yearlyYear <= YEAR_MIN;
+    document.getElementById('nextYear').disabled = yearlyYear >= YEAR_MAX;
+    document.querySelectorAll('#yearDomainSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.domain === yearlyDomain)));
+  }
+
+  async function loadYearly() {
+    const root = document.getElementById('yearlyRoot');
+    renderYearSwitch();
+    if (dbState !== 'ready') { root.innerHTML = '<div class="empty-hint">Supabase에 연결되면 연간 현황을 볼 수 있어요.</div>'; return; }
+    const token = ++yearlyToken;
+    root.innerHTML = '<div class="empty-hint">불러오는 중…</div>';
+    try {
+      if (!allCategories.length) await loadCategories();
+      const rows = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabaseClient.from('transactions')
+          .select('txn_date, type, is_fixed, category, amount')
+          .eq('domain', yearlyDomain)
+          .gte('txn_date', `${yearlyYear}-01-01`).lte('txn_date', `${yearlyYear}-12-31`)
+          .order('txn_date').range(from, from + 999);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      if (token !== yearlyToken) return;
+      const agg = { income: new Map(), fixed: new Map(), variable: new Map() };
+      rows.forEach(r => {
+        const g = groupOf(r.type, r.is_fixed).key;
+        const month = Number(String(r.txn_date).slice(5, 7)) - 1;
+        if (!agg[g].has(r.category)) agg[g].set(r.category, Array(12).fill(0));
+        agg[g].get(r.category)[month] += Number(r.amount) || 0;
+      });
+      yearlyData = agg;
+      renderYearly();
+    } catch (err) {
+      if (token !== yearlyToken) return;
+      root.innerHTML = '';
+      const info = dbError(err); showBanner(info.code, info.detail);
+    }
+  }
+
+  function renderYearly() {
+    const root = document.getElementById('yearlyRoot');
+    if (!yearlyData) return;
+    const fmt = n => n === 0 ? '–' : n.toLocaleString('ko-KR');
+    const cell = (n, extra = '') => `<td class="${(n === 0 ? 'zero ' : '') + extra}">${fmt(n)}</td>`;
+    const sumArr = (arrs) => Array.from({ length: 12 }, (_, i) => arrs.reduce((a, b) => a + b[i], 0));
+    const rowTotal = arr => arr.reduce((a, b) => a + b, 0);
+    const dotColor = { income: 'var(--income)', fixed: 'var(--exp-fixed)', variable: 'var(--exp-var)' };
+
+    const groupTotals = {};
+    let body = '';
+    GROUPS.forEach(group => {
+      const data = yearlyData[group.key];
+      // 카테고리 관리 순서를 따르고, 삭제/변경된 이름도 데이터가 사라지지 않도록 뒤에 덧붙임
+      const names = allCategories
+        .filter(c => c.domain === yearlyDomain && c.type === group.txnType && boolVal(c.is_fixed) === group.isFixed)
+        .map(c => c.name);
+      Array.from(data.keys()).forEach(n => { if (!names.includes(n)) names.push(n); });
+      const lines = names.map(n => ({ name: n, months: data.get(n) || Array(12).fill(0) }));
+      const subtotal = sumArr(lines.map(l => l.months));
+      groupTotals[group.key] = subtotal;
+
+      body += `<tr class="group-head"><td colspan="14"><span class="dot" style="background:${dotColor[group.key]}"></span>${group.name}</td></tr>`;
+      if (!lines.length) body += `<tr><td colspan="14" class="zero" style="text-align:left;font-family:var(--font-body)">등록된 카테고리가 없어요.</td></tr>`;
+      lines.forEach(l => {
+        body += `<tr><td>${escapeHtml(l.name)}</td>${l.months.map(v => cell(v)).join('')}${cell(rowTotal(l.months), 'total')}</tr>`;
+      });
+      body += `<tr class="sub"><td>${group.name} 합계</td>${subtotal.map(v => cell(v)).join('')}${cell(rowTotal(subtotal), 'total')}</tr>`;
+    });
+
+    const expense = sumArr([groupTotals.fixed, groupTotals.variable]);
+    const net = groupTotals.income.map((v, i) => v - expense[i]);
+    const grand = (cls, label, arr) => `<tr class="grand ${cls}"><td>${label}</td>${arr.map(v => cell(v)).join('')}${cell(rowTotal(arr), 'total')}</tr>`;
+    body += grand('income', '총수입', groupTotals.income) + grand('expense', '총지출', expense) + grand('net', '순액', net);
+
+    const head = `<tr><th>카테고리</th>${Array.from({ length: 12 }, (_, i) => `<th>${i + 1}월</th>`).join('')}<th class="total">합계</th></tr>`;
+    const cols = '<colgroup><col class="c-name">' + '<col>'.repeat(12) + '<col class="c-total"></colgroup>';
+    root.innerHTML = `<div class="year-table-wrap"><table class="year-table">${cols}<thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  document.getElementById('prevYear').addEventListener('click', () => { if (yearlyYear > YEAR_MIN) { yearlyYear -= 1; loadYearly(); } });
+  document.getElementById('nextYear').addEventListener('click', () => { if (yearlyYear < YEAR_MAX) { yearlyYear += 1; loadYearly(); } });
+  document.querySelectorAll('#yearDomainSeg button').forEach(b => b.addEventListener('click', () => { yearlyDomain = b.dataset.domain; loadYearly(); }));
+
   /* ---------- month switch / tabs / boot ---------- */
   function renderMonthSwitch() {
     const { year, month } = monthAt(currentOffset);
@@ -1900,7 +2078,8 @@
       btn.setAttribute('aria-selected', 'true');
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       document.getElementById(btn.dataset.target).classList.add('active');
-      monthSwitch.hidden = btn.dataset.target === 'page-categories';
+      monthSwitch.hidden = btn.dataset.target === 'page-categories' || btn.dataset.target === 'page-yearly';
+      if (btn.dataset.target === 'page-yearly') loadYearly();
     });
   });
 
