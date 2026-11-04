@@ -590,45 +590,33 @@
   }
   .seg button[aria-pressed="true"]{ background:var(--accent); color:#fff; }
   .year-unit{ font-size:.75rem; color:var(--ink-faint); margin:0 0 8px; text-align:right; }
-  .year-table-wrap{
-    overflow-x:auto; background:var(--paper-raised);
-    border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  .year-section{ display:flex; align-items:center; gap:8px; font-size:.95rem; font-weight:700; margin:22px 0 10px; }
+  .year-section .dot{ width:9px; height:9px; border-radius:50%; }
+  .year-section .sub-total{ margin-left:auto; font-size:.8rem; font-weight:600; color:var(--ink-faint); }
+  .year-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; }
+  .ycard{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:16px 18px 14px; border-top:3px solid var(--hc);
   }
-  table.year-table{ border-collapse:separate; border-spacing:0; width:100%; min-width:1140px; table-layout:fixed; font-size:.8rem; }
-  .year-table col.c-name{ width:150px; }
-  .year-table col.c-total{ width:104px; }
-  .year-table th, .year-table td{
-    padding:9px 8px; text-align:right; white-space:nowrap;
-    border-bottom:1px solid var(--line);
-    font-variant-numeric:tabular-nums;
+  .ycard .yc-name{ font-size:.9rem; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
+  .ycard .yc-total{ font-family:var(--font-mono); font-size:1.35rem; font-weight:800; margin:4px 0 2px; color:var(--ink); }
+  .ycard .yc-avg{ font-size:.75rem; color:var(--ink-faint); margin-bottom:10px; }
+  .ycard .yc-rows{ display:flex; flex-direction:column; gap:3px; }
+  .ycard .yc-row{
+    position:relative; display:flex; justify-content:space-between; align-items:center;
+    font-size:.78rem; padding:3px 8px; border-radius:6px; overflow:hidden; z-index:0;
   }
-  .year-table td{ font-family:var(--font-mono); color:var(--ink); }
-  .year-table td.zero{ color:var(--ink-faint); }
-  .year-table thead th{
-    position:sticky; top:0; background:var(--paper-sunken);
-    font-weight:700; color:var(--ink-soft); font-size:.78rem;
+  .ycard .yc-row::before{
+    content:""; position:absolute; inset:0 auto 0 0; width:calc(var(--w) * 100%);
+    background:color-mix(in srgb, var(--hc) 22%, transparent); z-index:-1; border-radius:6px;
   }
-  .year-table th:first-child, .year-table td:first-child{
-    position:sticky; left:0; text-align:left; background:var(--paper-raised);
-    font-family:var(--font-body); min-width:120px; z-index:1;
-  }
-  .year-table thead th:first-child{ background:var(--paper-sunken); z-index:2; }
-  .year-table th.total, .year-table td.total{ font-weight:700; border-left:1px solid var(--line); background:var(--paper-sunken); }
-  .year-table tr.group-head td{
-    background:var(--paper-sunken); font-family:var(--font-body); font-weight:700; text-align:left; color:var(--ink);
-  }
-  .year-table tr.group-head td .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
-  .year-table tr.sub td{ font-weight:700; background:var(--paper-sunken); }
-  .year-table tr.sub td:first-child{ background:var(--paper-sunken); }
-  .year-table tr.grand td{ font-weight:800; border-top:2px solid var(--line-strong); }
-  .year-table tr.grand.income td:not(:first-child){ color:var(--income); }
-  .year-table tr.grand.expense td:not(:first-child){ color:var(--exp-fixed); }
-  .year-table tr.grand.net td:not(:first-child){ color:var(--accent); }
-  .year-table tbody tr:hover td{ background:var(--accent-soft); }
-  .year-table tbody tr td.heat{ background:color-mix(in srgb, var(--hc) calc(var(--h) * 55%), transparent); }
-  .year-table tbody tr td.heat.peak{ font-weight:800; box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--hc) 80%, transparent); }
+  .ycard .yc-row .m{ color:var(--ink-soft); font-weight:600; }
+  .ycard .yc-row .v{ font-family:var(--font-mono); color:var(--ink); }
+  .ycard .yc-row.zero .v, .ycard .yc-row.zero .m{ color:var(--ink-faint); }
+  .ycard .yc-row.peak .v{ font-weight:800; }
+  .ycard .yc-row.peak::before{ background:color-mix(in srgb, var(--hc) 40%, transparent); }
+  .ycard.summary .yc-total.neg{ color:var(--exp-fixed); }
   .year-legend{ font-size:.75rem; color:var(--ink-faint); margin:0 0 8px; text-align:right; }
-  .year-table tbody tr.group-head:hover td, .year-table tbody tr.sub:hover td{ background:var(--paper-sunken); }
 
   /* ---------- db banner ---------- */
   .db-banner{
@@ -2004,25 +1992,37 @@
     const root = document.getElementById('yearlyRoot');
     if (!yearlyData) return;
     const fmt = n => n === 0 ? '–' : n.toLocaleString('ko-KR');
-    const cell = (n, extra = '') => `<td class="${(n === 0 ? 'zero ' : '') + extra}">${fmt(n)}</td>`;
-    // 한 줄(카테고리) 안에서 가장 큰 달을 기준으로 색 농도를 정함 → 어느 달이 많았는지 한눈에
-    const heatCells = (arr, color) => {
-      const max = Math.max(...arr);
-      return arr.map(v => {
-        if (v <= 0 || max <= 0) return cell(v);
-        const h = Math.max(0.1, v / max).toFixed(2);
-        return `<td class="heat${v === max ? ' peak' : ''}" style="--h:${h};--hc:${color}">${fmt(v)}</td>`;
-      }).join('');
-    };
     const sumArr = (arrs) => Array.from({ length: 12 }, (_, i) => arrs.reduce((a, b) => a + b[i], 0));
     const rowTotal = arr => arr.reduce((a, b) => a + b, 0);
     const dotColor = { income: 'var(--income)', fixed: 'var(--exp-fixed)', variable: 'var(--exp-var)' };
+    // 연간 현황은 YEARLY_START(2026-07) 이후 달만 표시
+    const firstMonth = yearlyYear === +YEARLY_START.slice(0, 4) ? +YEARLY_START.slice(5, 7) - 1 : 0;
+    const months = Array.from({ length: 12 }, (_, i) => i).filter(i => i >= firstMonth);
+
+    const card = (name, arr, color, extra = '') => {
+      const total = rowTotal(arr);
+      const vals = months.map(i => arr[i]);
+      const max = Math.max(...vals.map(Math.abs));
+      const active = vals.filter(v => v !== 0).length;
+      const avg = active ? Math.round(total / active) : 0;
+      const rows = months.map(i => {
+        const v = arr[i];
+        const w = max > 0 ? Math.abs(v) / max : 0;
+        const cls = (v === 0 ? 'zero ' : '') + (max > 0 && Math.abs(v) === max && v !== 0 ? 'peak' : '');
+        return `<div class="yc-row ${cls}" style="--w:${w.toFixed(3)}"><span class="m">${i + 1}월</span><span class="v">${fmt(v)}</span></div>`;
+      }).join('');
+      return `<div class="ycard ${extra}" style="--hc:${color}">
+        <div class="yc-name">${escapeHtml(name)}</div>
+        <div class="yc-total${total < 0 ? ' neg' : ''}">${total === 0 ? '–' : total.toLocaleString('ko-KR')}</div>
+        <div class="yc-avg">${active ? '월평균 ' + avg.toLocaleString('ko-KR') + '원 (' + active + '개월)' : '기록 없음'}</div>
+        <div class="yc-rows">${rows}</div>
+      </div>`;
+    };
 
     const groupTotals = {};
-    let body = '';
+    let html = '';
     GROUPS.forEach(group => {
       const data = yearlyData[group.key];
-      // 카테고리 관리 순서를 따르고, 삭제/변경된 이름도 데이터가 사라지지 않도록 뒤에 덧붙임
       const names = allCategories
         .filter(c => c.domain === yearlyDomain && c.type === group.txnType && boolVal(c.is_fixed) === group.isFixed)
         .map(c => c.name);
@@ -2030,23 +2030,19 @@
       const lines = names.map(n => ({ name: n, months: data.get(n) || Array(12).fill(0) }));
       const subtotal = sumArr(lines.map(l => l.months));
       groupTotals[group.key] = subtotal;
-
-      body += `<tr class="group-head"><td colspan="14"><span class="dot" style="background:${dotColor[group.key]}"></span>${group.name}</td></tr>`;
-      if (!lines.length) body += `<tr><td colspan="14" class="zero" style="text-align:left;font-family:var(--font-body)">등록된 카테고리가 없어요.</td></tr>`;
-      lines.forEach(l => {
-        body += `<tr><td>${escapeHtml(l.name)}</td>${heatCells(l.months, dotColor[group.key])}${cell(rowTotal(l.months), 'total')}</tr>`;
-      });
-      body += `<tr class="sub"><td>${group.name} 합계</td>${heatCells(subtotal, dotColor[group.key])}${cell(rowTotal(subtotal), 'total')}</tr>`;
+      html += `<div class="year-section"><span class="dot" style="background:${dotColor[group.key]}"></span>${group.name}<span class="sub-total">${group.name} 합계 ${rowTotal(subtotal).toLocaleString('ko-KR')}원</span></div>`;
+      html += lines.length
+        ? `<div class="year-cards">${lines.map(l => card(l.name, l.months, dotColor[group.key])).join('')}</div>`
+        : `<div class="empty-hint">등록된 카테고리가 없어요.</div>`;
     });
 
     const expense = sumArr([groupTotals.fixed, groupTotals.variable]);
     const net = groupTotals.income.map((v, i) => v - expense[i]);
-    const grand = (cls, label, arr, color) => `<tr class="grand ${cls}"><td>${label}</td>${color ? heatCells(arr, color) : arr.map(v => cell(v)).join('')}${cell(rowTotal(arr), 'total')}</tr>`;
-    body += grand('income', '총수입', groupTotals.income, 'var(--income)') + grand('expense', '총지출', expense, 'var(--exp-fixed)') + grand('net', '순액', net);
-
-    const head = `<tr><th>카테고리</th>${Array.from({ length: 12 }, (_, i) => `<th>${i + 1}월</th>`).join('')}<th class="total">합계</th></tr>`;
-    const cols = '<colgroup><col class="c-name">' + '<col>'.repeat(12) + '<col class="c-total"></colgroup>';
-    root.innerHTML = `<p class="year-legend">색이 진할수록 그 항목에서 금액이 큰 달이에요 · 테두리 표시는 가장 큰 달</p><div class="year-table-wrap"><table class="year-table">${cols}<thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+    const summary = `<div class="year-section">전체 요약</div><div class="year-cards">${
+      card('총수입', groupTotals.income, 'var(--income)', 'summary') +
+      card('총지출', expense, 'var(--exp-fixed)', 'summary') +
+      card('순액 (수입 − 지출)', net, 'var(--accent)', 'summary')}</div>`;
+    root.innerHTML = `<p class="year-legend">막대가 길수록 금액이 큰 달이에요 · 굵게 표시된 달이 가장 큰 달</p>` + summary + html;
   }
 
   document.getElementById('prevYear').addEventListener('click', () => { if (yearlyYear > YEAR_MIN) { yearlyYear -= 1; loadYearly(); } });
