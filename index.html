@@ -2002,7 +2002,7 @@
   function renderYearly() {
     const root = document.getElementById('yearlyRoot');
     if (!yearlyData) return;
-    const fmt = n => n === 0 ? '–' : n.toLocaleString('ko-KR');
+    const fmt = n => Math.round(n) === 0 ? '–' : Math.round(n).toLocaleString('ko-KR');
     const sumArr = (arrs) => Array.from({ length: 12 }, (_, i) => arrs.reduce((a, b) => a + b[i], 0));
     const rowTotal = arr => arr.reduce((a, b) => a + b, 0);
     const dotColor = { income: 'var(--income)', fixed: 'var(--exp-fixed)', variable: 'var(--exp-var)' };
@@ -2024,8 +2024,8 @@
       }).join('');
       return `<div class="ycard ${extra}" style="--hc:${color}">
         <div class="yc-name">${escapeHtml(name)}</div>
-        <div class="yc-total${total < 0 ? ' neg' : ''}">${total === 0 ? '–' : total.toLocaleString('ko-KR')}</div>
-        <div class="yc-avg">${active ? '월평균 ' + avg.toLocaleString('ko-KR') + '원 (' + active + '개월)' : '기록 없음'}</div>
+        <div class="yc-total${total < 0 ? ' neg' : ''}">${Math.round(total) === 0 ? '–' : Math.round(total).toLocaleString('ko-KR')}</div>
+        <div class="yc-avg">${active ? '월평균 ' + Math.round(avg).toLocaleString('ko-KR') + '원 (' + active + '개월)' : '기록 없음'}</div>
         <div class="yc-rows">${rows}</div>
       </div>`;
     };
@@ -2043,7 +2043,7 @@
       const subtotal = sumArr(lines.map(l => l.months));
       groupTotals[group.key] = subtotal;
       if (group.key !== 'income') lines.forEach(l => expenseLines.push(l));
-      html += `<div class="year-section"><span class="dot" style="background:${dotColor[group.key]}"></span>${group.name}<span class="sub-total">${group.name} 합계 ${rowTotal(subtotal).toLocaleString('ko-KR')}원</span></div>`;
+      html += `<div class="year-section"><span class="dot" style="background:${dotColor[group.key]}"></span>${group.name}<span class="sub-total">${group.name} 합계 ${Math.round(rowTotal(subtotal)).toLocaleString('ko-KR')}원</span></div>`;
       html += lines.length
         ? `<div class="year-cards">${lines.map(l => card(l.name, l.months, dotColor[group.key])).join('')}</div>`
         : `<div class="empty-hint">등록된 카테고리가 없어요.</div>`;
@@ -2052,7 +2052,7 @@
     const expense = sumArr([groupTotals.fixed, groupTotals.variable]);
     const net = groupTotals.income.map((v, i) => v - expense[i]);
     // ── 가장 최근 입력된 달 기준 요약 ──
-    const W = n => Math.abs(n).toLocaleString('ko-KR') + '원';
+    const W = n => Math.round(Math.abs(n)).toLocaleString('ko-KR') + '원';
     const pct = (cur, base) => base > 0 ? Math.round((cur - base) / base * 100) : null;
     let recap = '';
     let latest = -1;
