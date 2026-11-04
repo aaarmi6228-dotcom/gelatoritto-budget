@@ -841,7 +841,8 @@
   const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   /* ---------- month state ---------- */
-  const BASE_YEAR = 2026, BASE_MONTH = 9; // 오늘: 2026년 9월
+  const _today = new Date();
+  const BASE_YEAR = _today.getFullYear(), BASE_MONTH = _today.getMonth() + 1; // 오늘이 속한 달 (새로고침하면 항상 이번 달로 열림)
   const MIN_OFFSET = -36, MAX_OFFSET = 12;
   let currentOffset = 0;
 
