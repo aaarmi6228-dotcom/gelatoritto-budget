@@ -1954,7 +1954,8 @@
   let yearlyDomain = '가계';
   let yearlyData = null; // 가져온 거래 합계: { 'group.key': { 카테고리명: [12개월 합계] } }
   let yearlyToken = 0;
-  const YEAR_MIN = monthAt(MIN_OFFSET).year, YEAR_MAX = monthAt(MAX_OFFSET).year;
+  const YEARLY_START = '2026-07-01'; // 연간 현황은 2026년 7월 데이터부터 반영
+  const YEAR_MIN = 2026, YEAR_MAX = monthAt(MAX_OFFSET).year;
 
   function renderYearSwitch() {
     document.getElementById('yearLabel').textContent = yearlyYear + '년';
@@ -1976,7 +1977,7 @@
         const { data, error } = await supabaseClient.from('transactions')
           .select('txn_date, type, is_fixed, category, amount')
           .eq('domain', yearlyDomain)
-          .gte('txn_date', `${yearlyYear}-01-01`).lte('txn_date', `${yearlyYear}-12-31`)
+          .gte('txn_date', (`${yearlyYear}-01-01` < YEARLY_START ? YEARLY_START : `${yearlyYear}-01-01`)).lte('txn_date', `${yearlyYear}-12-31`)
           .order('txn_date').range(from, from + 999);
         if (error) throw error;
         rows.push(...(data || []));
